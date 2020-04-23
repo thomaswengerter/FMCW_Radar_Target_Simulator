@@ -46,7 +46,7 @@ for target = 1:Pedestrians
     %Model Radar Signal for selected Target
     psb = modelSignal(ped, fmcw);
     pRD = fmcw.RDmap(psb);
-    %fmcw.plotRDmap(pRD, [targetR, targetV]);
+    fmcw.plotRDmap(pRD, [targetR, targetV]);
     
     %Label output and save
     label = [targetR, targetV];
@@ -57,7 +57,7 @@ end
 
 
 %% Bycicle Traget
-for target = 1:Bicycle
+for target = 1:Bicycles
     bike = backscatterBicyclist;
     bike.NumWheelSpokes = 20;
     bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
@@ -89,8 +89,8 @@ for target = 1:Bicycle
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Bicycle');
-    writematrix(bRD, ['SimulationData/Bicycle',str(target)]);
-    writematrix(label, ['SimulationData/Blabel',str(target)]);
+    writematrix(bRD, ['SimulationData/Bicycle',num2str(target)]);
+    writematrix(label, ['SimulationData/Blabel',num2str(target)]);
 end
 
 for target = 1:Cars
@@ -104,8 +104,8 @@ for target = 1:Cars
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Car');
-    writematrix(cRD, ['SimulationData/Car',str(target)]);
-    writematrix(label, ['SimulationData/Car',str(target)]);
+    writematrix(cRD, ['SimulationData/Car',num2str(target)]);
+    writematrix(label, ['SimulationData/Car',num2str(target)]);
 end
 
 for target = 1:synteticTarget
@@ -121,8 +121,8 @@ for target = 1:synteticTarget
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Syntetic');
-    writematrix(bRD, ['SimulationData/Syntetic',str(target)]);
-    writematrix(label, ['SimulationData/Slabel',str(target)]);
+    writematrix(bRD, ['SimulationData/Syntetic',num2str(target)]);
+    writematrix(label, ['SimulationData/Slabel',num2str(target)]);
 end
 
 

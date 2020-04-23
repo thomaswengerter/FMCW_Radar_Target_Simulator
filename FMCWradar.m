@@ -187,6 +187,12 @@ classdef FMCWradar
             %SB = fliplr(SB); % switch sign of Doppler Velocity 
             
             RDmap = 10 * log10(abs(SB).^2); % RD map in logarithmic scale
+            
+            %% RDmap preprocessing
+            %Set max(RD) to 0
+%             RDmap = RDmap - max(RDmap);
+            %Set minimum to -150dB
+%             RDmap(RDmap < -200) = -200;
         end
         
         
