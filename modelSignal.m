@@ -22,7 +22,8 @@ rcvx = phased.ReceiverPreamp('Gain',fmcw.RXgain,'NoiseFigure',fmcw.RXNF);
 
 %% Start Radar Measurement
 % Collect sampled reflections within the current chirpInterval for L consecutive chirps
-% xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.fs),fmcw.L)); % RX chirp sequence
+% Sampling frequency for propagation is Propagation_fs = sweepBw to avoid
+% undersampling
 xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.Propagation_fs),fmcw.L));
 
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
@@ -43,6 +44,11 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
     sb = conj(dechirp(xRX, xTX)); %Mix Tx with Rx to transform sRx to baseband signal
     sb = real(sb);
     
+    % AD Downsampling fs
+    idxstep = fmcw.Propagation_fs/fmcw.fs;
+    sb = sb(1:idxstep:end,:);
+    
+    % Crop TX pause between chirps
     if strcmp(fmcw.chirpShape,'SAWgap') && sb(fmcw.K+1,1)>0
         % Check for pause after chirp
         error('\nAre you sure you selected the correct Chirp Shape? No gap between SAW chirps detected\n\n')
@@ -69,8 +75,10 @@ elseif strcmp(fmcw.chirpShape,'SAW')
     sb = conj(dechirp(xRX, xTX)); %Mix Tx with Rx to transform sRx to baseband signal
     sb = imag(sb);
     sb = reshape(sb,[],fmcw.L);
-        
-   
+    
+    %AD Downsampling fs
+    idxstep = fmcw.fs/fmcw.Propagation_fs;
+    sb = sb(1:idxstep:end);
 end
 
 %Received complex signal sb

@@ -12,8 +12,8 @@ clear
 global c_0;
 c_0 = 299792458;
 
-Pedestrian = 0;
-Bicycle = 1;
+Pedestrian = 1;
+Bicycle = 0;
 Car = 0;
 
 %Generate Radar Object

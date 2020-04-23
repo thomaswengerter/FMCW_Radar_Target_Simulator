@@ -77,15 +77,13 @@ classdef FMCWradar
         %% Specify chirp sequence
         function obj = generateChirpSequence(obj)
             % output: add object feature obj.chirps which contains the
-            % samples for one chirp sequence t = 64e-6s sampled with the
-            % propagation sampling rate obj.Propagation_fs = 2*obj.sweepBw.
+            % samples for one chirp sequence (chirpInterval) sampled with the
+            % propagation sampling rate obj.Propagation_fs = obj.sweepBw
+            % (avoiding undersampling occuring for lower fs).
             
             showplot = false; %for plot, change obj.Propagation_fs
-            if showplot
-                obj.Propagation_fs = 2*obj.sweepBw; %sampling rate of the modelled signal
-            else
-                obj.Propagation_fs = obj.fs;
-            end
+            obj.Propagation_fs = obj.sweepBw; %sampling rate of the modelled prop signal
+            
             
             %TRIANGLE
             if strcmp(obj.chirpShape,'TRI')
