@@ -13,7 +13,7 @@ global c_0;
 c_0 = 299792458;
 
 % Select number of target samples
-Pedestrians = 1;
+Pedestrians = 2;
 Bicycles = 0;
 Cars = 0;
 synteticTarget = 0; %use Signal simulation for synt point targets in simulateSignal.m
@@ -25,7 +25,7 @@ fmcw = fmcw.init_RDmap();
 
 
 %% Pedestrian Target
-for target = 1:Pedestrians
+parfor target = 1:Pedestrians
     ped = backscatterPedestrian;
     %ped.Name = 'Pedestrian1';
     ped.Height = 1+rand(); % [1m,2m]
@@ -51,13 +51,13 @@ for target = 1:Pedestrians
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Pedestrian');
-    writematrix(pRD, ['SimulationData/Pedestrian',num2str(target)]);
-    writematrix(label, ['SimulationData/Plabel',num2str(target)]);
+    writematrix(pRD, ['SimulationData/Pedestrian/Pedestrian',num2str(target)]);
+    writematrix(label, ['SimulationData/Pedestrian/Plabel',num2str(target)]);
 end
 
 
 %% Bycicle Traget
-for target = 1:Bicycles
+parfor target = 1:Bicycles
     bike = backscatterBicyclist;
     bike.NumWheelSpokes = 20;
     bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
@@ -89,11 +89,11 @@ for target = 1:Bicycles
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Bicycle');
-    writematrix(bRD, ['SimulationData/Bicycle',num2str(target)]);
-    writematrix(label, ['SimulationData/Blabel',num2str(target)]);
+    writematrix(bRD, ['SimulationData/Bicycle/Bicycle',num2str(target)]);
+    writematrix(label, ['SimulationData/Bicycle/Blabel',num2str(target)]);
 end
 
-for target = 1:Cars
+parfor target = 1:Cars
     targetR = [10]; %add more with ;
     targetV = [5]; %add more with ;
     
@@ -104,11 +104,11 @@ for target = 1:Cars
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Car');
-    writematrix(cRD, ['SimulationData/Car',num2str(target)]);
-    writematrix(label, ['SimulationData/Car',num2str(target)]);
+    writematrix(cRD, ['SimulationData/Car/Car',num2str(target)]);
+    writematrix(label, ['SimulationData/Car/Car',num2str(target)]);
 end
 
-for target = 1:synteticTarget
+parfor target = 1:synteticTarget
     %Simulate syntetic point targets
     %Enter Positions/Velocities for point targets
     targetR = [10]; %add more with ;
@@ -121,8 +121,8 @@ for target = 1:synteticTarget
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Syntetic');
-    writematrix(bRD, ['SimulationData/Syntetic',num2str(target)]);
-    writematrix(label, ['SimulationData/Slabel',num2str(target)]);
+    writematrix(cRD, ['SimulationData/Syntetic/Syntetic',num2str(target)]);
+    writematrix(label, ['SimulationData/Syntetic/Slabel',num2str(target)]);
 end
 
 
