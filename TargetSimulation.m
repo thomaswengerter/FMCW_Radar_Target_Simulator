@@ -12,9 +12,10 @@ clear
 global c_0;
 c_0 = 299792458;
 
-Pedestrian = 1;
-Bicycle = 0;
+Pedestrian = 0;
+Bicycle = 1;
 Car = 0;
+synteticTarget = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -85,6 +86,18 @@ if Bicycle
 end
 
 if Car
+    targetsRange = [10];
+    targetsVelocity = [5];
+    
+    csb = simulateSignal(fmcw, targetsRange, targetsVelocity, 0, false);
+    cRD = fmcw.RDmap(csb);
+    fmcw.plotRDmap(cRD, [targetsRange, targetsVelocity]);
+    
+end
+
+if synteticTarget
+    %Simulate syntetic point targets
+    %Enter Positions/Velocities for point targets
     targetsRange = [10];
     targetsVelocity = [5];
     

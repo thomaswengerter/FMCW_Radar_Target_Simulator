@@ -137,21 +137,6 @@ classdef FMCWradar
         
         
         
-        %% Calculate Baseband signal s_beat
-        function s_beat = modelSignal(obj, amp, f_Range, f_Doppler, phase)
-            RangeIdxMat = meshgrid(1:obj.K, 1:obj.L); %Matrix 0:K Samples(time) in L (Chirps) lines
-            DopplerIdxMat = meshgrid(1:obj.L,1:obj.K); %Matrix 0:L in K lines
-            
-            rangeMat = exp(1j*2*pi * f_Range/obj.fs * RangeIdxMat); % t = over K Sample values(time) add f_R, to each Chirp (L lines)
-            dopplerMat = exp(1j*2*pi * f_Doppler*obj.chirpIntervall* DopplerIdxMat); % t = over L Chirps add f_D, to each Sample (lines)
-            phaseMat   = exp(1j*2*pi * phase); % phase difference due to Range
-            
-            
-            s_beat = amp * (dopplerMat*rangeMat*phaseMat);
-        end
-        
-        
-        
         %% Add Gaussian noise with varying standard deviation to the signal
         function s_beatnoisy = addGaussNoise(s_beat)
             % Input:    s_beat (dimension of KxL)
