@@ -65,7 +65,7 @@ classdef FMCWradar
             obj.L = obj.chirpsCycle;  %Number of chirps observed in one cycle
             obj.dR = obj.c0/(2*obj.sweepBw); %Range resolution
             obj.dV = 1/(obj.L *obj.chirpInterval) * obj.c0 /(2*obj.f0); %Velocity resolution
-            obj.rangeBins = (1:obj.K/2-1)*obj.dR;
+            obj.rangeBins = (0:obj.K/2-1)*obj.dR;
             obj.velBins = (-obj.L/2:obj.L/2-1) *obj.dV;
             %RmaxChirp = (chirpInterval-chirpTime)*c0/2; %max unabiguous Range limited by receiving interval
             obj.Rmaxsamp = obj.fs/4*obj.c0*obj.chirpTime/obj.sweepBw; %max Range limited by sampling freq
@@ -172,10 +172,11 @@ classdef FMCWradar
             SB = fft(s_beat,[], 1)/length(s_beat(:,1)); % FFT 1 of every column with K time samples
             SB = fftshift(SB,1);
             
-            % DEBUG plot
-            figure
-            x = -length(s_beat(:,1))/2*obj.dR:obj.dR:length(s_beat(:,1))/2*obj.dR-obj.dR;
-            plot(x, SB(:,10)) %FFT of 10th chirp
+%             % DEBUG plot
+%             % Show first FFT with Range resolution
+%             figure
+%             x = -length(s_beat(:,1))/2*obj.dR:obj.dR:length(s_beat(:,1))/2*obj.dR-obj.dR;
+%             plot(x, SB(:,10)) %FFT of 10th chirp
             
             
             SB = fft(SB, [], 2)/256; % FFT 2 of every row with L chirps
@@ -200,20 +201,9 @@ classdef FMCWradar
 %             y = [fliplr(y),y];
             if ~isempty(target) %show current target position
                 % Transform target R and V to indices in RD map
-                targetRidx = floor(target(1)/obj.dR); %Range idx are fliped
-                targetVidx = (obj.L/2) + floor(target(2)/obj.dV);
-                if targetRidx <= 0
-                    % Range < 0m
-                    targetRidx = 1; 
-                elseif targetRidx>length(obj.rangeBins)
-                    % Range > 24m too large
-                    targetRidx = length(obj.rangeBins);
-                end
-                if targetVidx <= 0
-                    targetVidx = 1;
-                elseif targetVidx > obj.L
-                    targetVidx = obj.L;
-                end
+                [~,targetRidx] = min(abs(target(1)-obj.rangeBins));
+                [~,targetVidx] = min(abs(target(2)-obj.velBins));
+
                 RDmap_plt = insertMarker(RDmap_plt, [targetVidx, targetRidx]); % add Marker
                 %bRD = insertShape(bRD,'circle',[150 280 35],'LineWidth',5);
             end

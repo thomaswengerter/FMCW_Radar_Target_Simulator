@@ -13,9 +13,9 @@ global c_0;
 c_0 = 299792458;
 
 Pedestrian = 0;
-Bicycle = 1;
+Bicycle = 0;
 Car = 0;
-synteticTarget = 0; %use Signal simulation for synt point targets in simulateSignal.m
+synteticTarget = 1; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
 fmcw = FMCWradar;
