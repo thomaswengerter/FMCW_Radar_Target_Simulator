@@ -13,11 +13,12 @@ global c_0;
 c_0 = 299792458;
 
 % Select number of target samples
-Pedestrians = 2;
-Bicycles = 0;
+Pedestrians = 5;
+Bicycles = 5;
 Cars = 0;
 synteticTarget = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
+add_files = True;
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -31,7 +32,7 @@ parfor target = 1:Pedestrians
     ped.Height = 1+rand(); % [1m,2m]
     ped.WalkingSpeed = rand()* 1.4*ped.Height;
     ped.OperatingFrequency = fmcw.f0;
-    ped.PropagationSpeed = c_0; %propagation speed of radar rays in air
+    ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     randposx = fmcw.rangeBins(end)*rand();
     ped.InitialPosition = [randposx; 0; 0]; %add random posx posy
     randangle = rand()*360;
@@ -46,15 +47,19 @@ parfor target = 1:Pedestrians
     %Model Radar Signal for selected Target
     psb = modelSignal(ped, fmcw);
     pRD = fmcw.RDmap(psb);
-    fmcw.plotRDmap(pRD, [targetR, targetV]);
+    %fmcw.plotRDmap(pRD, [targetR, targetV]);
     
     %Label output and save
     label = [targetR, targetV];
-    status = mkdir('SimulationData/Pedestrian');
-    writematrix(pRD, ['SimulationData/Pedestrian/Pedestrian',num2str(target)]);
-    writematrix(label, ['SimulationData/Pedestrian/Plabel',num2str(target)]);
+    status = mkdir('SimulationData/Pedestrian'); %make dict
+    file_offset = 0; %offset to keep existing files
+    if add_files
+        files = dir('SimulationData/Pedestrian/Pedestrian*');
+        file_offset = length(files); % #files to keep
+    end
+    writematrix(pRD, ['SimulationData/Pedestrian/Pedestrian',num2str(target+file_offset)]);
+    writematrix(label, ['SimulationData/Pedestrian/Plabel',num2str(target+file_offset)]);
 end
-
 
 %% Bycicle Traget
 parfor target = 1:Bicycles
@@ -70,7 +75,7 @@ parfor target = 1:Bicycles
     randspeed = rand()*fmcw.velBins(end);
     bike.Speed = randspeed; %m/s
     bike.Coast = false; %Padeling movements?
-    bike.PropagationSpeed = c_0; %propagation speed of radar rays in air
+    bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     % bike.AzimutAngles = fmcw.azimut; %default 77GHz cyclist <- use default
     % bike.ElevationAngles = fmcw.elevation; %default 77GHz cyclist <- use default
     % bike.RCSPattern = fmcw.RCS; %default 77GHz cyclist <- use default
@@ -89,8 +94,13 @@ parfor target = 1:Bicycles
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Bicycle');
-    writematrix(bRD, ['SimulationData/Bicycle/Bicycle',num2str(target)]);
-    writematrix(label, ['SimulationData/Bicycle/Blabel',num2str(target)]);
+    file_offset = 0; %offset to keep existing files
+    if add_files
+        files = dir('SimulationData/Bicycle/Bicycle*');
+        file_offset = length(files); % #files to keep
+    end
+    writematrix(bRD, ['SimulationData/Bicycle/Bicycle',num2str(target+file_offset)]);
+    writematrix(label, ['SimulationData/Bicycle/Blabel',num2str(target+file_offset)]);
 end
 
 parfor target = 1:Cars
@@ -104,8 +114,13 @@ parfor target = 1:Cars
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Car');
-    writematrix(cRD, ['SimulationData/Car/Car',num2str(target)]);
-    writematrix(label, ['SimulationData/Car/Car',num2str(target)]);
+    file_offset = 0; %offset to keep existing files
+    if add_files
+        files = dir('SimulationData/Car/Car*');
+        file_offset = length(files); % #files to keep
+    end
+    writematrix(cRD, ['SimulationData/Car/Car',num2str(target+file_offset)]);
+    writematrix(label, ['SimulationData/Car/Car',num2str(target+file_offset)]);
 end
 
 parfor target = 1:synteticTarget
@@ -121,8 +136,13 @@ parfor target = 1:synteticTarget
     %Label output and save
     label = [targetR, targetV];
     status = mkdir('SimulationData/Syntetic');
-    writematrix(cRD, ['SimulationData/Syntetic/Syntetic',num2str(target)]);
-    writematrix(label, ['SimulationData/Syntetic/Slabel',num2str(target)]);
+    file_offset = 0; %offset to keep existing files
+    if add_files
+        files = dir('SimulationData/Syntetic/Syntetic*');
+        file_offset = length(files); % #files to keep
+    end
+    writematrix(cRD, ['SimulationData/Syntetic/Syntetic',num2str(target+file_offset)]);
+    writematrix(label, ['SimulationData/Syntetic/Slabel',num2str(target_file_offset)]);
 end
 
 
