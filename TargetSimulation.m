@@ -13,11 +13,13 @@ global c_0;
 c_0 = 299792458;
 
 % Select number of target samples
-Pedestrians = 5;
-Bicycles = 5;
+Pedestrians = 2;
+Bicycles = 0;
 Cars = 0;
-synteticTarget = 0; %use Signal simulation for synt point targets in simulateSignal.m
+Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
+% Set dictionary to save files
+SimDataPath = 'SimulationData/';
 add_files = true;
 
 %Generate Radar Object
@@ -26,6 +28,13 @@ fmcw = fmcw.init_RDmap();
 
 
 %% Pedestrian Target
+if Pedestrians, status = mkdir([SimDataPath,'Pedestrian']); end %make dict
+file_offset = 0; %offset to keep existing files
+if Pedestrians && add_files
+    files = dir([SimDataPath,'Pedestrian/Pedestrian*']);
+    file_offset = length(files); % #files to keep  
+end
+
 parfor target = 1:Pedestrians
     ped = backscatterPedestrian;
     %ped.Name = 'Pedestrian1';
@@ -51,17 +60,19 @@ parfor target = 1:Pedestrians
     
     %Label output and save
     label = [targetR, targetV];
-    status = mkdir('SimulationData/Pedestrian'); %make dict
-    file_offset = 0; %offset to keep existing files
-    if add_files
-        files = dir('SimulationData/Pedestrian/Pedestrian*');
-        file_offset = length(files); % #files to keep
-    end
-    writematrix(pRD, ['SimulationData/Pedestrian/Pedestrian',num2str(target+file_offset)]);
-    writematrix(label, ['SimulationData/Pedestrian/Plabel',num2str(target+file_offset)]);
+    saveMat(pRD, label, 'Pedestrian', target+file_offset, SimDataPath)
 end
 
+
+
 %% Bycicle Traget
+if Bicycles, status = mkdir([SimDataPath,'Bicycle']); end%create dict
+file_offset = 0; %offset to keep existing files
+if Bicycles && add_files
+    files = dir([SimDataPath,'Bicycle/Bicycle*']);
+    file_offset = length(files); % #files to keep  
+end
+
 parfor target = 1:Bicycles
     bike = backscatterBicyclist;
     bike.NumWheelSpokes = 20;
@@ -93,16 +104,17 @@ parfor target = 1:Bicycles
     
     %Label output and save
     label = [targetR, targetV];
-    status = mkdir('SimulationData/Bicycle');
-    file_offset = 0; %offset to keep existing files
-    if add_files
-        files = dir('SimulationData/Bicycle/Bicycle*');
-        file_offset = length(files); % #files to keep
-    end
-    writematrix(bRD, ['SimulationData/Bicycle/Bicycle',num2str(target+file_offset)]);
-    writematrix(label, ['SimulationData/Bicycle/Blabel',num2str(target+file_offset)]);
+    saveMat(bRD, label, 'Bicycle', target+file_offset, SimDataPath)
 end
 
+
+%% Car target
+if Cars, status = mkdir([SimDataPath,'Car']); end %create dict
+file_offset = 0; %offset to keep existing files
+if Cars && add_files
+    files = dir([SimDataPath,'Car/Car*']);
+    file_offset = length(files); % #files to keep  
+end
 parfor target = 1:Cars
     targetR = [10]; %add more with ;
     targetV = [5]; %add more with ;
@@ -113,42 +125,32 @@ parfor target = 1:Cars
     
     %Label output and save
     label = [targetR, targetV];
-    status = mkdir('SimulationData/Car');
-    file_offset = 0; %offset to keep existing files
-    if add_files
-        files = dir('SimulationData/Car/Car*');
-        file_offset = length(files); % #files to keep
-    end
-    writematrix(cRD, ['SimulationData/Car/Car',num2str(target+file_offset)]);
-    writematrix(label, ['SimulationData/Car/Car',num2str(target+file_offset)]);
+    saveMat(cRD, label, 'Car', target+file_offset, SimDataPath)
 end
 
-parfor target = 1:synteticTarget
+
+%% Syntetic targets 
+if Syntetics, status = mkdir([SimDataPath,'Syntetic']); end %create dict
+file_offset = 0; %offset to keep existing files
+if Syntetics && add_files
+    files = dir([SimDataPath,'Syntetic/Syntetic*']);
+    file_offset = length(files); % #files to keep  
+end
+parfor target = 1:Syntetics
     %Simulate syntetic point targets
     %Enter Positions/Velocities for point targets
     targetR = [10]; %add more with ;
     targetV = [5]; %add more with ;
     
     csb = simulateSignal(fmcw, targetR, targetV, 0, false);
-    cRD = fmcw.RDmap(csb);
-    fmcw.plotRDmap(cRD, [targetR, targetV]);
+    sRD = fmcw.RDmap(csb);
+    fmcw.plotRDmap(sRD, [targetR, targetV]);
     
     %Label output and save
     label = [targetR, targetV];
-    status = mkdir('SimulationData/Syntetic');
-    file_offset = 0; %offset to keep existing files
-    if add_files
-        files = dir('SimulationData/Syntetic/Syntetic*');
-        file_offset = length(files); % #files to keep
-    end
-    writematrix(cRD, ['SimulationData/Syntetic/Syntetic',num2str(target+file_offset)]);
-    writematrix(label, ['SimulationData/Syntetic/Slabel',num2str(target_file_offset)]);
+    saveMat(sRD, label, 'Syntetic', target+file_offset, SimDataPath)
 end
 
-
-
-
-createMat('SimulationData/')
 
 
 
