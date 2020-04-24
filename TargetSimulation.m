@@ -18,7 +18,7 @@ Bicycles = 5;
 Cars = 0;
 synteticTarget = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
-add_files = True;
+add_files = true;
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -148,7 +148,7 @@ end
 
 
 
-
+createMat('SimulationData/')
 
 
 
