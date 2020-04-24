@@ -18,13 +18,18 @@ Bicycles = 0;
 Cars = 0;
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
-% Set dictionary to save files
-SimDataPath = 'SimulationData/';
-add_files = true;
-
 %Generate Radar Object
 fmcw = FMCWradar;
 fmcw = fmcw.init_RDmap();
+
+
+% Set dictionary to save files
+SimDataPath = 'SimulationData/';
+add_files = false;
+if ~add_files && exist(SimDataPath(1:end-1),'dir')
+    %clear Sim data folder
+    rmdir('SimulationData','s')
+end
 
 
 %% Pedestrian Target
