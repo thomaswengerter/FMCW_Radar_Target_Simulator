@@ -21,7 +21,7 @@ classdef FMCWradar
         chirpsCycle = 256; %Number of chirps per measurement cycle (Doppler)
         height = 0.5; %position above street in m
         
-        TXpeakPower = 0.1; %10dBm in W
+        TXpeakPower = 0.01; %10dBm in W
         TXgain = 17;
         RXgain = 15;
         RXNF = 0;
@@ -138,14 +138,15 @@ classdef FMCWradar
         
         
         %% Add Gaussian noise with varying standard deviation to the signal
-        function s_beatnoisy = addGaussNoise(s_beat)
+        function s_beatnoisy = addGaussNoise(obj, s_beat)
             % Input:    s_beat (dimension of KxL)
-            noiseStdList = 0.5:0.01:2;
+            noiseStdList = 0.5:0.01:2; %0.5:0.01:2
             mean = 0;
             stdidx = floor(rand()*length(noiseStdList))+1;
             noiseStd = noiseStdList(stdidx);
             sz = size(s_beat);
-            noise = noiseStd * randn(sz)+mean;
+            %noise = noiseStd * randn(sz)+mean;
+            noise = 0.00008 * randn(sz)+mean;
             
             s_beatnoisy = s_beat+noise;
         end
@@ -153,7 +154,7 @@ classdef FMCWradar
         
         
         %% Add Weibull noise
-        function s_beatnoisy = addWeibullNoise(s_beat)
+        function s_beatnoisy = addWeibullNoise(obj,s_beat)
             s_beatnoisy = s_beat;
         end
         
@@ -169,7 +170,7 @@ classdef FMCWradar
                 error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp sequence L doesnt match the beat signal columns...\n\n', size(s_beat,1), size(s_beat,2), obj.K, obj.L)
             end
             
-            SB = fft(s_beat,[], 1)/length(s_beat(:,1)); % FFT 1 of every column with K time samples
+            SB = fft(s_beat,[], 1); %/length(s_beat(:,1)) FFT 1 of every column with K time samples
             SB = fftshift(SB,1);
             
 %             % DEBUG plot
@@ -179,7 +180,7 @@ classdef FMCWradar
 %             plot(x, SB(:,10)) %FFT of 10th chirp
             
             
-            SB = fft(SB, [], 2)/256; % FFT 2 of every row with L chirps
+            SB = fft(SB, [], 2); % /256  FFT 2 of every row with L chirps
             SB = fftshift(SB,2);
             
             %Visualization Corrections

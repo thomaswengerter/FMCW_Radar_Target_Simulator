@@ -8,14 +8,16 @@
 %-----------------------------------------------------------
 
 clear
+tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
 
 % Select number of target samples
-Pedestrians = 2;
+Pedestrians =1;
 Bicycles = 0;
 Cars = 0;
+NoTarget = 0; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
@@ -44,13 +46,13 @@ parfor target = 1:Pedestrians
     ped = backscatterPedestrian;
     %ped.Name = 'Pedestrian1';
     ped.Height = 1+rand(); % [1m,2m]
-    ped.WalkingSpeed = rand()* 1.4*ped.Height;
+    ped.WalkingSpeed = 1.4*ped.Height; % rand()* 
     ped.OperatingFrequency = fmcw.f0;
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
-    randposx = fmcw.rangeBins(end)*rand();
-    ped.InitialPosition = [randposx; 0; 0]; %add random posx posy
+    randposx = fmcw.rangeBins(end)*rand(); 
+    ped.InitialPosition = [11.5; 0; 0]; %add random posx posy
     randangle = rand()*360;
-    ped.InitialHeading = randangle; %in degree, heading along x from x=5 to x=7
+    ped.InitialHeading = 0; %in degree, heading along x from x=5 to x=7
     
     %Ground Truth
     %targetR: Range (radial dist. from radar to target)
@@ -59,9 +61,11 @@ parfor target = 1:Pedestrians
     targetV = +ped.WalkingSpeed*cos(ped.InitialHeading/360*2*pi);
     
     %Model Radar Signal for selected Target
-    psb = modelSignal(ped, fmcw);
-    pRD = fmcw.RDmap(psb);
-    %fmcw.plotRDmap(pRD, [targetR, targetV]);
+    sb = modelSignal(ped, fmcw);
+    %sbn = fmcw.addGaussNoise(sb);
+    pRD = fmcw.RDmap(sb);
+    fmcw.plotRDmap(pRD, [targetR, targetV]);
+    plotNoise;
     
     %Label output and save
     label = [targetR, targetV];
@@ -85,11 +89,11 @@ parfor target = 1:Bicycles
     bike.OperatingFrequency = fmcw.f0;
     randposx = fmcw.rangeBins(end)*rand();
     posy = 25*rand();
-    bike.InitialPosition = [randposx;0;0];
+    bike.InitialPosition = [4;2;0];
     randangle = rand()*360;
-    bike.InitialHeading = randangle; %in degree, heading along x-axis
+    bike.InitialHeading = 360-90; %in degree, heading along x-axis
     randspeed = rand()*fmcw.velBins(end);
-    bike.Speed = randspeed; %m/s
+    bike.Speed = 5; %m/s
     bike.Coast = false; %Padeling movements?
     bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     % bike.AzimutAngles = fmcw.azimut; %default 77GHz cyclist <- use default
@@ -103,9 +107,10 @@ parfor target = 1:Bicycles
     targetV = +bike.Speed*cos(bike.InitialHeading/360*2*pi);
             
     %Model Radar Signal for selected Target
-    bsb = modelSignal(bike, fmcw);
-    bRD = fmcw.RDmap(bsb);
-    %fmcw.plotRDmap(bRD, [targetR, targetV]);
+    sb = modelSignal(bike, fmcw);
+    bRD = fmcw.RDmap(sb);
+    fmcw.plotRDmap(bRD, [targetR, targetV]);
+    plotNoise;
     
     %Label output and save
     label = [targetR, targetV];
@@ -124,8 +129,8 @@ parfor target = 1:Cars
     targetR = [10]; %add more with ;
     targetV = [5]; %add more with ;
     
-    csb = simulateSignal(fmcw, targetR, targetV, 0, false);
-    cRD = fmcw.RDmap(csb);
+    sb = simulateSignal(fmcw, targetR, targetV, 0, false);
+    cRD = fmcw.RDmap(sb);
     fmcw.plotRDmap(cRD, [targetR, targetV]);
     
     %Label output and save
@@ -147,8 +152,8 @@ parfor target = 1:Syntetics
     targetR = [10]; %add more with ;
     targetV = [5]; %add more with ;
     
-    csb = simulateSignal(fmcw, targetR, targetV, 0, false);
-    sRD = fmcw.RDmap(csb);
+    sb = simulateSignal(fmcw, targetR, targetV, 0, false);
+    sRD = fmcw.RDmap(sb);
     fmcw.plotRDmap(sRD, [targetR, targetV]);
     
     %Label output and save
@@ -156,6 +161,30 @@ parfor target = 1:Syntetics
     saveMat(sRD, label, 'Syntetic', target+file_offset, SimDataPath)
 end
 
+
+%% Noise / No targets 
+if NoTarget, status = mkdir([SimDataPath,'NoTarget']); end %create dict
+file_offset = 0; %offset to keep existing files
+if NoTarget && add_files
+    files = dir([SimDataPath,'NoTarget/NoTarget*']);
+    file_offset = length(files); % #files to keep  
+end
+parfor target = 1:NoTarget
+    %Simulate Noise
+    sb = zeros(fmcw.K,fmcw.L);
+    nsb = fmcw.addGaussNoise(sb);
+    nRD = fmcw.RDmap(nsb);
+    fmcw.plotRDmap(sRD, [targetR, targetV]);
+    
+    %DEBUG: Show Noise char over Range
+    plotNoise;
+    
+    %Label output and save
+    label = [targetR, targetV];
+    saveMat(sRD, label, 'Syntetic', target+file_offset, SimDataPath)
+end
+
+toc
 
 
 
