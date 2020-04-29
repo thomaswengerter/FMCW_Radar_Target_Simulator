@@ -25,6 +25,8 @@ classdef FMCWradar
         TXgain = 17;
         RXgain = 15;
         RXNF = 0;
+        NoiseFloor = -70; %dB
+        dynamicNoise = 10; %dB, +/- NoiseFloor
         
         %Initialized in function:   init_RDmap(obj)
         chirpInterval = [];
@@ -140,15 +142,52 @@ classdef FMCWradar
         %% Add Gaussian noise with varying standard deviation to the signal
         function s_beatnoisy = addGaussNoise(obj, s_beat)
             % Input:    s_beat (dimension of KxL)
-            noiseStdList = 0.5:0.01:2; %0.5:0.01:2
-            mean = 0;
-            stdidx = floor(rand()*length(noiseStdList))+1;
-            noiseStd = noiseStdList(stdidx);
-            sz = size(s_beat);
-            %noise = noiseStd * randn(sz)+mean;
-            noise = 0.00008 * randn(sz)+mean;
+            % fmcw.SNR is determining the amplitude of additional noise
+            printNoiseCharacteristics = true; %DEBUG
             
-            s_beatnoisy = s_beat+noise;
+            %Adjust Noise Floor to match FFT outputs
+            FFToffset = -60; %dB
+            
+            %Apply offset and add random dynamics to Noise Floor
+            dynOffset = ((rand()-0.5)*2)*obj.dynamicNoise;
+            FFTnoiseFloor = obj.NoiseFloor+FFToffset + dynOffset;
+            
+            %Calculate the noise power from the noise floor
+            Pn = 10^(FFTnoiseFloor/10);
+            
+            %Compare to Beat Signal Power
+            if strcmp(obj.chirpShape,'SAWgap')
+                Ps = 1/(size(s_beat,1)/2)*sum(abs(s_beat(1:size(s_beat,1)/2,end).^2));
+            else
+                Ps = 1/(size(s_beat,1))*sum(abs(s_beat(:,end).^2));
+            end
+            if Pn>Ps*10 && Ps>0 && printNoiseCharacteristics
+                fprintf('Caution: Noise Power %.2f dB exceeds RX beat signal power %.2f dB!\nConsider setting a lower Noise Floor. \n', FFTnoiseFloor, 10*log10(Ps))
+            end
+            
+            %Initialize Noise statistics
+            sig = sqrt(Pn);
+            mean = 0;
+            sz = size(s_beat);
+            noise = sig * randn(sz)+mean;
+            
+            noiseR = sig * randn(sz)+mean;
+            FN = fftshift(fft(noiseR,[],1),1);
+            FNR = zeros(size(FN));
+            for c = 1:size(FNR,2)
+                % Difference of Signal power (R) is -10dB = 10^-1
+                FNR(:,c) = FN(:,c) .* [fliplr(10.^(-1*obj.rangeBins/obj.rangeBins(end))), 10.^(-1*obj.rangeBins/obj.rangeBins(end))]' ;
+            end
+            noiseR = ifft(ifftshift(FNR,1),[],1);
+            RnoiseFaktor = rand()*3;
+            
+            
+            % Add Noise and range dep. Clutter to signal
+            if printNoiseCharacteristics
+                SNR = Ps/Pn;
+                fprintf('Generated gaussian Noise Floor at %.2f dB with Range dependency factor %.2f.\nSNR is %.5f (%.2f dB).\n', obj.NoiseFloor+dynOffset, RnoiseFaktor, SNR, 10*log10(SNR));
+            end
+            s_beatnoisy = s_beat+ (noise+noiseR*RnoiseFaktor);
         end
         
         
@@ -213,6 +252,8 @@ classdef FMCWradar
 
                 RDmap_plt = insertMarker(RDmap_plt, [targetVidx, targetRidx]); % add Marker
                 %bRD = insertShape(bRD,'circle',[150 280 35],'LineWidth',5);
+                fprintf('Simulation of Target starting at Range %d m and radial Velocity %d m/s.\n', ...
+                target(1), target(2))
             end
             imagesc(x,y,RDmap_plt(:,:,1))
             set(gca,'YDir','normal')
@@ -220,8 +261,7 @@ classdef FMCWradar
             ylabel('Range in m')
             colorbar
             title('Contour of Backscattered Power in dB')
-            fprintf('Simulation of Target starting at Range %d m and radial Velocity %d m/s.\n', ...
-                target(1), target(2))
+            
         end
         
     end
