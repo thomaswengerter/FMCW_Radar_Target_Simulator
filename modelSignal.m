@@ -28,13 +28,13 @@ xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.Propagation_fs),fmcw.L));
 
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
+    xTX = trx(fmcw.chirps()); % Radar transmitter signal
     for chirp = 1:fmcw.L
         % Looping through chirps
         [posr,velr,axr] = radarplt(tsamp); % current Position of Radar
         %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
         [post,velt,axt] = move(target,tsamp,target.InitialHeading); % start Moving target
         [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
-        xTX = trx(fmcw.chirps()); % Radar transmitter signal
         shape = size(post);
         N = shape(end); % getNumScatters(target)
         xtrans = chan(repmat(xTX,1,N),posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
