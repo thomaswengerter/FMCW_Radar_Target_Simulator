@@ -192,9 +192,46 @@ classdef FMCWradar
         
         
         
-        %% Add Weibull noise
-        function s_beatnoisy = addWeibullNoise(obj,s_beat)
-            s_beatnoisy = s_beat;
+        %% Add static Clutter
+        function sbC = addStaticClutter(obj,s_beat)
+            
+            Pclutter_min = obj.NoiseFloor; %dB
+            AmpMargin = 20; %dB
+            
+            %Adjust Noise Floor to match FFT outputs
+            FFToffset = -60; %dB
+            
+            % Init random Number of static Targets
+            statTarg = ceil(raylrnd(rand())/3*length(obj.rangeBins))+2; %generate a random amount of static targets
+            %statTarg ~ [1, 80] targets on 160 Range bins
+            
+            
+            % Rayleigh distances
+            Ridx = floor(raylrnd(rand(1,statTarg))/2*length(obj.rangeBins))+1;
+            Ridx(Ridx>length(obj.rangeBins)) = ceil(rand()*length(obj.rangeBins));
+            ranges = obj.rangeBins(Ridx);
+            
+            % Rayleigh amplitudes with margin 15 dB
+            % TODO: Add Range dependencies
+            rAmpdiff = raylrnd(rand(1,statTarg))*AmpMargin/3;
+            rAmp = (Pclutter_min)*ones(1,statTarg) + (AmpMargin-rAmpdiff);
+            rAmp = sqrt(10.^((rAmp+FFToffset)/10)); %Amp = sqrt(Pn), dB->scalar
+            
+            % Generate signals for clutter
+            fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *ranges;
+            phase = obj.f0*2/obj.c0*ranges;
+            clutter = zeros(obj.K,obj.L);
+            rangeIdxMat = transpose(meshgrid(0:obj.K-1, 1:obj.L)); %Matrix 0:K Samples(time) in L (Chirps) columns
+            
+            for target = 1:statTarg
+                % add signals for Frequency shifts (Range, Doppler and Phase shift)
+                rangeMat   = exp(1j*2*pi * fR(target)/obj.fs * rangeIdxMat); % t = over K Sample values(time) add f_R, to each Chirp (L lines)
+                phaseMat   = exp(1j*2*pi * phase(target)); %phase difference due to Range
+                
+                clutter = clutter + rAmp(target)* (rangeMat.*phaseMat);
+            end
+            
+            sbC = s_beat + real(clutter);
         end
         
         

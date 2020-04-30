@@ -17,8 +17,8 @@ c_0 = 299792458;
 Pedestrians = 0;
 Bicycles = 0;
 Cars = 0;
-NoTarget = 0; 
-Syntetics = 1; %use Signal simulation for synt point targets in simulateSignal.m
+NoTarget = 1; 
+Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -42,7 +42,7 @@ if Pedestrians && add_files
     file_offset = length(files); % #files to keep  
 end
 
-parfor target = 1:Pedestrians
+for target = 1:Pedestrians
     ped = backscatterPedestrian;
     %ped.Name = 'Pedestrian1';
     ped.Height = 1+rand(); % [1m,2m]
@@ -50,7 +50,7 @@ parfor target = 1:Pedestrians
     ped.OperatingFrequency = fmcw.f0;
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     randposx = fmcw.rangeBins(end)*rand();  
-    ped.InitialPosition = [21.5; 0; 0]; %add random posx posy
+    ped.InitialPosition = [11.5; 0; 0]; %add random posx posy
     randangle = rand()*360;
     ped.InitialHeading = 0; %in degree, heading along x from x=5 to x=7
     
@@ -108,8 +108,9 @@ parfor target = 1:Bicycles
             
     %Model Radar Signal for selected Target
     sb = modelSignal(bike, fmcw);
-    bRD = fmcw.RDmap(sb);
-    fmcw.plotRDmap(bRD, [targetR, targetV]);
+    sbn = fmcw.addGaussNoise(sb);
+    bRD = fmcw.RDmap(sbn);
+    fmcw.plotRDmap(bRD, []);
     plotNoise;
     
     %Label output and save
@@ -169,11 +170,12 @@ if NoTarget && add_files
     files = dir([SimDataPath,'NoTarget/NoTarget*']);
     file_offset = length(files); % #files to keep  
 end
-parfor target = 1:NoTarget
+for target = 1:NoTarget
     %Simulate Noise
     sb = zeros(fmcw.K,fmcw.L);
-    nsb = fmcw.addGaussNoise(sb);
-    nRD = fmcw.RDmap(nsb);
+    sbn = fmcw.addGaussNoise(sb);
+    sbc = fmcw.addStaticClutter(sbn);
+    nRD = fmcw.RDmap(sbc);
     fmcw.plotRDmap(nRD, []);
     
     %DEBUG: Show Noise char over Range
