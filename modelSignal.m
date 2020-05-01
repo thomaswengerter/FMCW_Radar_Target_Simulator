@@ -16,6 +16,8 @@ radarplt = phased.Platform('InitialPosition',[0;0;fmcw.height], ...
     'OrientationAxesOutputPort',true, 'InitialVelocity', [0;0;0], 'Acceleration', [0;0;0]);
 % Radar Transmitter
 trx = phased.Transmitter('PeakPower',fmcw.TXpeakPower,'Gain',fmcw.TXgain);
+% Radar Receiver
+RXarray = phased.ULA('NumElements', fmcw.RXant, 'ElementSpacing', fmcw.c0/fmcw.f0);
 rcvx = phased.ReceiverPreamp('Gain',fmcw.RXgain,'NoiseFigure',fmcw.RXNF);
 
 
@@ -24,7 +26,7 @@ rcvx = phased.ReceiverPreamp('Gain',fmcw.RXgain,'NoiseFigure',fmcw.RXNF);
 % Collect sampled reflections within the current chirpInterval for L consecutive chirps
 % Sampling frequency for propagation is Propagation_fs = sweepBw to avoid
 % undersampling
-xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.Propagation_fs),fmcw.L));
+xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.Propagation_fs),fmcw.L, fmcw.RXant));
 
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
@@ -38,23 +40,35 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
         shape = size(post);
         N = shape(end); % getNumScatters(target)
         xtrans = chan(repmat(xTX,1,N),posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
-        xRX(:,chirp) = rcvx(reflect(target,xtrans,angle)); %receive sum of Reflections
+        RXsig = reflect(target,xtrans,angle); %receive sum of Reflections
+        mangle = mean(angle,2); %angle between target and radar
+        if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100
+            angle(angle<-100) = angle(angle<-100)+360;
+            mangle = mean(angle,2);
+            if mangle(1)>180
+                mangle(1) = mangle(1)-360;
+            end
+        end
+        xRX(:,chirp,:) = rcvx(collectPlaneWave(RXarray, RXsig, mangle, fmcw.f0, fmcw.c0));
     end
     % Radar RX Signal Processing
-    sb = conj(dechirp(xRX, xTX)); %Mix Tx with Rx to transform sRx to baseband signal
+    sb = zeros(size(xRX));
+    for ant = 1:fmcw.RXant
+        sb(:,:,ant) = conj(dechirp(xRX(:,:,ant), xTX)); %Mix Tx with Rx to transform sRx to baseband signal       
+    end
     sb = real(sb);
     
     % AD Downsampling fs
     idxstep = fmcw.Propagation_fs/fmcw.fs;
-    sb = sb(1:idxstep:end,:);
+    sb = sb(1:idxstep:end,:,:);
     
     % Crop TX pause between chirps
-    if strcmp(fmcw.chirpShape,'SAWgap') && sb(fmcw.K+1,1)>0
+    if strcmp(fmcw.chirpShape,'SAWgap') && sb(fmcw.K+1,1,1)>0
         % Check for pause after chirp
         error('\nAre you sure you selected the correct Chirp Shape? No gap between SAW chirps detected\n\n')
     else
         % discard the TX pause from the signal
-        sb = sb(1:fmcw.K,:);
+        sb = sb(1:fmcw.K,:,:);
     end
 
     
@@ -70,7 +84,17 @@ elseif strcmp(fmcw.chirpShape,'SAW')
     shape = size(post);
     N = shape(end); % getNumScatters(target)
     xtrans = chan(repmat(xTX,1,N),posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
-    xRX = rcvx(reflect(target,xtrans,angle));
+    RXsig = reflect(target,xtrans,angle);
+    mangle = mean(angle,2); %angle between target and radar
+    if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100
+        angle(angle<-100) = angle(angle<-100)+360;
+        mangle = mean(angle,2);
+        if mangle(1)>180
+            mangle(1) = mangle(1)-360;
+        end
+    end
+    xRX = rcvx(collectPlaneWave(RXarray, RXsig, mangle, fmcw.f0, fmcw.c0));
+    
     % Radar RX Signal Processing
     sb = conj(dechirp(xRX, xTX)); %Mix Tx with Rx to transform sRx to baseband signal
     sb = imag(sb);

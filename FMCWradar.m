@@ -25,6 +25,7 @@ classdef FMCWradar
         TXgain = 17;
         RXgain = 15;
         RXNF = 0;
+        RXant = 8;
         NoiseFloor = -70; %dB
         dynamicNoise = 10; %dB, +/- NoiseFloor
         
@@ -157,9 +158,9 @@ classdef FMCWradar
             
             %Compare to Beat Signal Power
             if strcmp(obj.chirpShape,'SAWgap')
-                Ps = 1/(size(s_beat,1)/2)*sum(abs(s_beat(1:size(s_beat,1)/2,end).^2));
+                Ps = 1/(size(s_beat,1)/2)*sum(abs(s_beat(1:size(s_beat,1)/2,end,1).^2));
             else
-                Ps = 1/(size(s_beat,1))*sum(abs(s_beat(:,end).^2));
+                Ps = 1/(size(s_beat,1))*sum(abs(s_beat(:,end,1).^2));
             end
             if Pn>Ps*10 && Ps>0 && printNoiseCharacteristics
                 fprintf('Caution: Noise Power %.2f dB exceeds RX beat signal power %.2f dB!\nConsider setting a lower Noise Floor. \n', FFTnoiseFloor, 10*log10(Ps))
@@ -172,13 +173,15 @@ classdef FMCWradar
             noise = sig * randn(sz)+mean;
             
             noiseR = sig * randn(sz)+mean;
-            FN = fftshift(fft(noiseR,[],1),1);
-            FNR = zeros(size(FN));
-            for c = 1:size(FNR,2)
-                % Difference of Signal power (R) is -10dB = 10^-1
-                FNR(:,c) = FN(:,c) .* [fliplr(10.^(-1*obj.rangeBins/obj.rangeBins(end))), 10.^(-1*obj.rangeBins/obj.rangeBins(end))]' ;
+            for a = 1:size(s_beat,3)
+                FN = fftshift(fft(noiseR(:,:,a),[],1),1);
+                FNR = zeros(size(FN));
+                for c = 1:size(FNR,2)
+                    % Difference of Signal power (R) is -10dB = 10^-1
+                    FNR(:,c) = FN(:,c) .* [fliplr(10.^(-1*obj.rangeBins/obj.rangeBins(end))), 10.^(-1*obj.rangeBins/obj.rangeBins(end))]' ;
+                end
+                noiseR(:,:,a) = ifft(ifftshift(FNR,1),[],1);
             end
-            noiseR = ifft(ifftshift(FNR,1),[],1);
             RnoiseFaktor = rand()*3;
             
             
@@ -194,7 +197,7 @@ classdef FMCWradar
         
         %% Add static Clutter
         function sbC = addStaticClutter(obj,s_beat)
-            
+            % NOT IDEAL... CONSIDER ADDING BACKSCATTER TARGETS INSTEAD
             Pclutter_min = obj.NoiseFloor; %dB
             AmpMargin = 20; %dB
             
@@ -238,66 +241,76 @@ classdef FMCWradar
         
         %% Generate Range Doppler Map from given beat signal s_beat
         function RDmap = RDmap(obj, s_beat)
-            % Input:    s_beat (Matrix KxL)
+            % Input:    s_beat (Matrix KxLxA)
+            sz = size(s_beat);
+            RDmap = zeros(sz(1)/2,sz(2), sz(3));
             
-            if size(s_beat,1) ~= obj.K
-                error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp K doesnt match the beat signal rows...\n\n', size(s_beat,1), size(s_beat,2), obj.K, obj.L)
-            elseif size(s_beat,2) ~= obj.L
-                error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp sequence L doesnt match the beat signal columns...\n\n', size(s_beat,1), size(s_beat,2), obj.K, obj.L)
+            for ant = 1:obj.RXant
+                %Select one RX antenna
+                sb = s_beat(:,:,ant);
+
+                if size(sb,1) ~= obj.K
+                    error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp K doesnt match the beat signal rows...\n\n', size(sb,1), size(sb,2), obj.K, obj.L)
+                elseif size(sb,2) ~= obj.L
+                    error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp sequence L doesnt match the beat signal columns...\n\n', size(sb,1), size(sb,2), obj.K, obj.L)
+                end
+
+                % 1st FFT for RANGE
+                SB = fft(sb,[], 1); %/length(s_beat(:,1)) FFT 1 of every column with K time samples
+                SB = fftshift(SB,1);
+
+    %             % DEBUG plot
+    %             % Show first FFT with Range resolution
+    %             figure
+    %             x = -length(s_beat(:,1))/2*obj.dR:obj.dR:length(s_beat(:,1))/2*obj.dR-obj.dR;
+    %             plot(x, SB(:,10)) %FFT of 10th chirp
+
+                % 2nd FFT for DOPPLER
+                SB = fft(SB, [], 2); % /256  FFT 2 of every row with L chirps
+                SB = fftshift(SB,2);
+
+                %Visualization Corrections
+                SB = SB(length(sb(:,1))/2+1:end,:); % dont show negative Range 
+
+                RDmap(:,:,ant) = 10 * log10(abs(SB).^2); % RD map in logarithmic scale
+
+                % OPTIONAL: RDmap preprocessing
+                %Set max(RD) to 0
+    %             RDmap = RDmap - max(RDmap);
+                %Set minimum to -150dB
+    %             RDmap(RDmap < -200) = -200;
+                
             end
-            
-            SB = fft(s_beat,[], 1); %/length(s_beat(:,1)) FFT 1 of every column with K time samples
-            SB = fftshift(SB,1);
-            
-%             % DEBUG plot
-%             % Show first FFT with Range resolution
-%             figure
-%             x = -length(s_beat(:,1))/2*obj.dR:obj.dR:length(s_beat(:,1))/2*obj.dR-obj.dR;
-%             plot(x, SB(:,10)) %FFT of 10th chirp
-            
-            
-            SB = fft(SB, [], 2); % /256  FFT 2 of every row with L chirps
-            SB = fftshift(SB,2);
-            
-            %Visualization Corrections
-            SB = SB(length(s_beat(:,1))/2+1:end,:); % dont show negative Range
-            %SB = fliplr(SB); % switch sign of Doppler Velocity 
-            
-            RDmap = 10 * log10(abs(SB).^2); % RD map in logarithmic scale
-            
-            %% RDmap preprocessing
-            %Set max(RD) to 0
-%             RDmap = RDmap - max(RDmap);
-            %Set minimum to -150dB
-%             RDmap(RDmap < -200) = -200;
         end
         
         
         
         %% Plot the Range Doppler map
-        function plotRDmap(obj, RDmap, target)
+        function plotRDmap(obj, RDmap, target, plotAntennas)
             % Input:    RDmap (from RDmap())
-            RDmap_plt = RDmap;
-            figure;
-            x = obj.velBins;
-            y = obj.rangeBins(1:length(obj.rangeBins/2));
-%             y = [fliplr(y),y];
-            if ~isempty(target) %show current target position
-                % Transform target R and V to indices in RD map
-                [~,targetRidx] = min(abs(target(1)-obj.rangeBins));
-                [~,targetVidx] = min(abs(target(2)-obj.velBins));
+            for ant = plotAntennas
+                RDmap_plt = RDmap(:,:,ant);
+                figure;
+                x = obj.velBins;
+                y = obj.rangeBins(1:length(obj.rangeBins/2));
+    %             y = [fliplr(y),y];
+                if ~isempty(target) %show current target position
+                    % Transform target R and V to indices in RD map
+                    [~,targetRidx] = min(abs(target(1)-obj.rangeBins));
+                    [~,targetVidx] = min(abs(target(2)-obj.velBins));
 
-                RDmap_plt = insertMarker(RDmap_plt, [targetVidx, targetRidx]); % add Marker
-                %bRD = insertShape(bRD,'circle',[150 280 35],'LineWidth',5);
-                fprintf('Simulation of Target starting at Range %d m and radial Velocity %d m/s.\n', ...
-                target(1), target(2))
+                    RDmap_plt = insertMarker(RDmap_plt, [targetVidx, targetRidx]); % add Marker
+                    %bRD = insertShape(bRD,'circle',[150 280 35],'LineWidth',5);
+                    fprintf('Simulation of Target starting at Range %d m and radial Velocity %d m/s.\n', ...
+                    target(1), target(2))
+                end
+                imagesc(x,y,RDmap_plt(:,:,1))
+                set(gca,'YDir','normal')
+                xlabel('Velocity in m/s')
+                ylabel('Range in m')
+                colorbar
+                title(['Contour of Backscattered Power at RX antenna ', num2str(ant), ' in dB'])
             end
-            imagesc(x,y,RDmap_plt(:,:,1))
-            set(gca,'YDir','normal')
-            xlabel('Velocity in m/s')
-            ylabel('Range in m')
-            colorbar
-            title('Contour of Backscattered Power in dB')
             
         end
         

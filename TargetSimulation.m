@@ -14,15 +14,16 @@ global c_0;
 c_0 = 299792458;
 
 % Select number of target samples
-Pedestrians = 0;
+Pedestrians = 1;
 Bicycles = 0;
 Cars = 0;
-NoTarget = 1; 
+NoTarget = 0; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
 fmcw = FMCWradar;
 fmcw = fmcw.init_RDmap();
+plotAntennas = [1]; %
 
 
 % Set dictionary to save files
@@ -64,7 +65,7 @@ for target = 1:Pedestrians
     sb = modelSignal(ped, fmcw);
     sbn = fmcw.addGaussNoise(sb);
     pRD = fmcw.RDmap(sbn);
-    fmcw.plotRDmap(pRD, []);
+    fmcw.plotRDmap(pRD, [], plotAntennas);
     plotNoise; 
     
     %Label output and save
@@ -110,7 +111,7 @@ parfor target = 1:Bicycles
     sb = modelSignal(bike, fmcw);
     sbn = fmcw.addGaussNoise(sb);
     bRD = fmcw.RDmap(sbn);
-    fmcw.plotRDmap(bRD, []);
+    fmcw.plotRDmap(bRD, [], plotAntennas);
     plotNoise;
     
     %Label output and save
@@ -132,7 +133,7 @@ parfor target = 1:Cars
     
     sb = simulateSignal(fmcw, targetR, targetV, 0, false);
     cRD = fmcw.RDmap(sb);
-    fmcw.plotRDmap(cRD, [targetR, targetV]);
+    fmcw.plotRDmap(cRD, [targetR, targetV], plotAntennas);
     
     %Label output and save
     label = [targetR, targetV];
@@ -155,7 +156,7 @@ parfor target = 1:Syntetics
     
     sb = simulateSignal(fmcw, targetR, targetV, 0, false);
     sRD = fmcw.RDmap(sb);
-    fmcw.plotRDmap(sRD, [targetR, targetV]);
+    fmcw.plotRDmap(sRD, [targetR, targetV], plotAntennas);
     
     %Label output and save
     label = [targetR, targetV];
@@ -172,11 +173,11 @@ if NoTarget && add_files
 end
 for target = 1:NoTarget
     %Simulate Noise
-    sb = zeros(fmcw.K,fmcw.L);
+    sb = zeros(fmcw.K, fmcw.L, fmcw.RXant);
     sbn = fmcw.addGaussNoise(sb);
-    sbc = fmcw.addStaticClutter(sbn);
+    %sbc = fmcw.addStaticClutter(sbn);
     nRD = fmcw.RDmap(sbc);
-    fmcw.plotRDmap(nRD, []);
+    fmcw.plotRDmap(nRD, [], plotAntennas);
     
     %DEBUG: Show Noise char over Range
     plotNoise;
