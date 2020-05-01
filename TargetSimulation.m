@@ -12,6 +12,7 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
+plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
 Pedestrians = 1;
@@ -23,7 +24,10 @@ Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 %Generate Radar Object
 fmcw = FMCWradar;
 fmcw = fmcw.init_RDmap();
-plotAntennas = [1]; %
+% Initialize FMCW radar object and environment
+fmcw = fmcw.generateChirpSequence(); %Generate chirp waveform, initialize fmcw.chirps
+fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.antPattern
+fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
 
 
 % Set dictionary to save files

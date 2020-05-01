@@ -42,6 +42,17 @@ classdef FMCWradar
         %Initialized in function:   generateChirpSequence(obj)
         Propagation_fs = []; %sampling rate of the modelled signal
         chirps = []; %object of class phased.FMCWwaveform or phased.LinearFMWaveform
+        
+        %Initialized in function:   generateAntPattern(obj)
+        VantPattern = [];
+        HantPattern = [];
+        
+        %Initialized in function:   setupMeasurement(obj)
+        MSchan = [];
+        MSradarplt = [];
+        MStrx = [];
+        MSRXarray = [];
+        MSrcvx = [];
     end
     
     
@@ -95,13 +106,7 @@ classdef FMCWradar
                     'SweepDirection', 'Triangle',... 
                     'SweepInterval', 'Positive', 'NumSweeps', 1);
             
-            %SAWTOOTH
-            elseif strcmp(obj.chirpShape,'SAW') %256 chirps
-                obj.chirps = phased.FMCWWaveform('SampleRate',obj.Propagation_fs,'SweepTime',obj.chirpTime, ...
-                    'SweepBandwidth',obj.sweepBw,...
-                    'SweepDirection', 'Up',...  %SweepDirection Triangle
-                    'SweepInterval', 'Positive', 'NumSweeps', obj.L);            
-            
+            %SAWTOOTH            
             elseif strcmp(obj.chirpShape,'SAW1') %1 chirp
                 obj.chirps = phased.FMCWWaveform('SampleRate',obj.Propagation_fs,'SweepTime',obj.chirpTime, ...
                     'SweepBandwidth',obj.sweepBw,...
@@ -136,6 +141,33 @@ classdef FMCWradar
                 % Downsample chirp
                 
             end
+            
+        end
+        
+        %% Generate antenna pattern
+        function obj = generateAntPattern(obj)
+            az = -180:10:180;
+            Vpattern = [-17, -13,-15, NaN,-17, -11,-8.5, -7.5, -5, -3.5,0,5,7,10,11,12,13.5,14,15,14,13.5,11,12,10,7,5,0,-3.5,-5,-7.5,-8.5,-11,-17,NaN,-15,-13,-17];
+            Hpattern = [-17,NaN,NaN,NaN,NaN,NaN,NaN,-20, -17, -14.5,-12,-11,-15,-10,NaN, -10,-4,7,15,7,-4,-10,NaN,-10,-15,-11,-12,-14.5,-17,-20,NaN,NaN,NaN,NaN,NaN,NaN, -17];
+            obj.VantPattern = repmat(Vpattern, [181,1]);
+            obj.HantPattern = repmat(Hpattern, [181,1]);
+        end
+        
+        
+        %% Setup Measurement
+        function obj = setupMeasurement(obj)
+            % Channel Model
+            obj.MSchan = phased.FreeSpace('PropagationSpeed',obj.c0,'OperatingFrequency',obj.f0, ...
+                'TwoWayPropagation',true,'SampleRate',obj.Propagation_fs);
+            % Radar Position and Motion
+            obj.MSradarplt = phased.Platform('InitialPosition',[0;0;obj.height], ...
+                'OrientationAxesOutputPort',true, 'InitialVelocity', [0;0;0], 'Acceleration', [0;0;0]);
+            % Radar Transmitter
+            obj.MStrx = phased.Transmitter('PeakPower',obj.TXpeakPower,'Gain',obj.TXgain);
+            % Radar Receiver
+            antenna = phased.CustomAntennaElement('AzimuthAngles', -180:10:180, 'SpecifyPolarizationPattern', true, 'HorizontalMagnitudePattern', obj.HantPattern,'VerticalMagnitudePattern', obj.VantPattern);
+            obj.MSRXarray = phased.ULA('Element', antenna, 'NumElements', obj.RXant, 'ElementSpacing', obj.c0/obj.f0);
+            obj.MSrcvx = phased.ReceiverPreamp('Gain',obj.RXgain,'NoiseFigure',obj.RXNF);
         end
         
         
