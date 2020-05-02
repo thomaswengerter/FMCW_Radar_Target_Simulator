@@ -21,13 +21,17 @@ classdef FMCWradar
         chirpsCycle = 256; %Number of chirps per measurement cycle (Doppler)
         height = 0.5; %position above street in m
         
+        %Antennas & Propagation
         TXpeakPower = 0.01; %10dBm in W
         TXgain = 17;
         RXgain = 15;
         RXNF = 0;
         RXant = 8;
+        
+        %Noise and Clutter
         NoiseFloor = -70; %dB
         dynamicNoise = 10; %dB, +/- NoiseFloor
+        staticClutter = false;
         
         %Initialized in function:   init_RDmap(obj)
         chirpInterval = [];
@@ -175,7 +179,7 @@ classdef FMCWradar
         %% Add Gaussian noise with varying standard deviation to the signal
         function s_beatnoisy = addGaussNoise(obj, s_beat)
             % Input:    s_beat (dimension of KxL)
-            % fmcw.SNR is determining the amplitude of additional noise
+            % obj.SNR is determining the amplitude of additional noise
             printNoiseCharacteristics = true; %DEBUG
             
             %Adjust Noise Floor to match FFT outputs
@@ -248,22 +252,38 @@ classdef FMCWradar
             
             % Rayleigh amplitudes with margin 15 dB
             % TODO: Add Range dependencies
-            rAmpdiff = raylrnd(rand(1,statTarg))*AmpMargin/3;
+            rAmpdiff = raylrnd(rand(1,statTarg))*AmpMargin/2;
             rAmp = (Pclutter_min)*ones(1,statTarg) + (AmpMargin-rAmpdiff);
             rAmp = sqrt(10.^((rAmp+FFToffset)/10)); %Amp = sqrt(Pn), dB->scalar
             
             % Generate signals for clutter
-            fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *ranges;
-            phase = obj.f0*2/obj.c0*ranges;
+%             fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *ranges;
+%             fd = -obj.f0 * 2/obj.c0 * 0;
+%             phase = obj.f0*2/obj.c0*ranges;
             clutter = zeros(obj.K,obj.L);
             rangeIdxMat = transpose(meshgrid(0:obj.K-1, 1:obj.L)); %Matrix 0:K Samples(time) in L (Chirps) columns
-            
+            dopplerIdxMat = meshgrid(0:obj.L-1, 1:obj.K); %Matrix 0:L in K lines
+
             for target = 1:statTarg
-                % add signals for Frequency shifts (Range, Doppler and Phase shift)
-                rangeMat   = exp(1j*2*pi * fR(target)/obj.fs * rangeIdxMat); % t = over K Sample values(time) add f_R, to each Chirp (L lines)
-                phaseMat   = exp(1j*2*pi * phase(target)); %phase difference due to Range
+                for R = -obj.dR:obj.dR:+obj.dR
+                    for v = -obj.dV:obj.dV:obj.dV
+                        fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *(ranges(target)+R);
+                        fd = -obj.f0 * 2/obj.c0 * v;
+                        phase = obj.f0*2/obj.c0*(ranges(target)+R);
+                        % add signals for Frequency shifts (Range, Doppler and Phase shift)
+                        rangeMat   = exp(1j*2*pi * fR/obj.fs * rangeIdxMat); % t = over K Sample values(time) add f_R, to each Chirp (L lines)
+                        dopplerMat = exp(1j*2*pi * fd*obj.chirpInterval* dopplerIdxMat); % t = over L Chirps add f_D, to each Sample (lines)
+                        phaseMat   = exp(1j*2*pi * phase); %phase difference due to Range
+                        
+                        if R==0 && v==0
+                            ampScale = 1; %main peak in center
+                        else
+                            ampScale = (rand()*0.75); %sidelobes with lower amp
+                        end
+                        clutter = clutter + rAmp(target)*ampScale* (rangeMat.*dopplerMat.*phaseMat);
+                    end
+                end
                 
-                clutter = clutter + rAmp(target)* (rangeMat.*phaseMat);
             end
             
             sbC = s_beat + real(clutter);
