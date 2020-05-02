@@ -15,10 +15,10 @@ c_0 = 299792458;
 plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
-Pedestrians = 1;
+Pedestrians = 0;
 Bicycles = 0;
 Cars = 0;
-NoTarget = 0; 
+NoTarget = 1; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
@@ -177,9 +177,9 @@ if NoTarget && add_files
 end
 for target = 1:NoTarget
     %Simulate Noise
-    sb = zeros(fmcw.K, fmcw.L, fmcw.RXant);
+    sb = modelSignal([], fmcw);
     sbn = fmcw.addGaussNoise(sb);
-    %sbc = fmcw.addStaticClutter(sbn);
+    sbc = fmcw.addStaticClutter(sbn);
     nRD = fmcw.RDmap(sbc);
     fmcw.plotRDmap(nRD, [], plotAntennas);
     

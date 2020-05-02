@@ -5,6 +5,28 @@ function [sb] = modelSignal(target, fmcw)
 %   settings specified in FMCWradar Object 'radar'
 
 
+% Add random static clutter Targets
+maxClutterObjects = 30;
+numClutterObjects = ceil(rand()*maxClutterObjects);
+
+% %Static Clutter
+% statClutter = {};
+% for obj = 1: numClutterObjects
+%     Robj = rand()*fmcw.rangeBins(end)+fmcw.dR; %static Clutter Range
+%     azmax = 2*rand()*180/Robj; %Azimut width
+%     elmax = 2*rand()*90/Robj; %Elevation width
+%     azimut = rand()*180-90;
+%     elev = rand()*180-90;
+%     azpatangs = [azimut:0.1:azimut+azmax];
+%     elpatangs = [elev:0.1:elev+elmax];
+%     rcspattern = 10.0*cosd(4*(elpatangs - elmax))'*cosd(4*(azpatangs - azmax));
+%     imagesc(azpatangs,elpatangs,rcspattern);
+%     statClutter{obj} = phased.BackscatterRadarTarget('Model','Swerling2',...
+%     'AzimuthAngles',azpatangs,'ElevationAngles',elpatangs,...
+%     'RCSPattern',rcspattern,'OperatingFrequency',fmcw.f0);
+% end
+
+
 %% Start Radar Measurement
 % Collect sampled reflections within the current chirpInterval for L consecutive chirps
 % Sampling frequency for propagation is Propagation_fs = sweepBw to avoid
@@ -14,27 +36,73 @@ xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.Propagation_fs),fmcw.L, fmcw.R
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
     xTX = fmcw.MStrx(fmcw.chirps()); % Radar transmitter signal
-    for chirp = 1:fmcw.L
-        % Looping through chirps
-        [posr,velr,axr] = fmcw.MSradarplt(tsamp); % current Position of Radar
-        %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
-        [post,velt,axt] = move(target,tsamp,target.InitialHeading); % start Moving target
-        [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
-        shape = size(post);
-        N = shape(end); % getNumScatters(target)
-        xtrans = fmcw.MSchan(repmat(xTX,1,N),posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
-        RXsig = reflect(target,xtrans,angle); %receive sum of Reflections
-        mangle = mean(angle,2); %angle between target and radar
-        if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100
-            angle(angle<-100) = angle(angle<-100)+360;
-            mangle = mean(angle,2);
-            if mangle(1)>180
-                mangle(1) = mangle(1)-360;
+    if ~isempty(target)
+        for chirp = 1:fmcw.L
+            % Looping through chirps
+            [posr,velr,axr] = fmcw.MSradarplt(tsamp); % current Position of Radar
+            %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
+            [post,velt,axt] = move(target,tsamp,target.InitialHeading); % start Moving target
+            [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
+            shape = size(post);
+            N = shape(end); % getNumScatters(target)
+            xtrans = fmcw.MSchan(repmat(xTX,1,N),posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
+            RXsig = reflect(target,xtrans,angle); %receive sum of Reflections from target
+
+            mangle = mean(angle,2); %angle between target and radar
+            if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100
+                angle(angle<-100) = angle(angle<-100)+360;
+                mangle = mean(angle,2);
+                if mangle(1)>180
+                    mangle(1) = mangle(1)-360;
+                end
             end
+
+            xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, mangle, fmcw.f0, fmcw.c0));       
+
         end
-        xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, mangle, fmcw.f0, fmcw.c0));
     end
+
+    %Static Clutter
+    cRX = zeros(size(xRX));
+    if fmcw.staticClutter
+        for obj = 1:numClutterObjects
+            Robj = rand()*fmcw.rangeBins(end)+fmcw.dR; %static Clutter Range
+            Azobj = rand()*180-90;
+            Elobj = rand()*120-60;
+            targetpos = phased.Platform('InitialPosition',[Robj*cos(Azobj)*cos(Elobj); Robj*sin(Azobj)*cos(Elobj); Robj*sin(Elobj)], ...
+                    'OrientationAxesOutputPort',true, 'InitialVelocity', [0;0;0], 'Acceleration', [0;0;0]);
+            [post,velt,axt] = targetpos(tsamp);
+
+            Rayleigh = raylrnd(1:100);
+            Pdistribution = Rayleigh/max(Rayleigh);
+            sigma = 1- Pdistribution(ceil(rand()*100)); %RCS
+            ClutterObj = phased.RadarTarget('Model','Swerling2','MeanRCS',sigma,...
+                    'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
+
+            for chirp = 1:fmcw.L
+                [posr,velr,axr] = fmcw.MSradarplt(tsamp);
+                [~,angle] = rangeangle(posr,post,axt);
+                mangle = mean(angle,2); %angle between target and radar
+                if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100
+                    angle(angle<-100) = angle(angle<-100)+360;
+                    mangle = mean(angle,2);
+                    if mangle(1)>180
+                        mangle(1) = mangle(1)-360;
+                    end
+                end
+                fmcw.MSchan.release();
+                xtrans = fmcw.MSchan(xTX,posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
+                RXclut = ClutterObj(xtrans,true); %receive sum of Reflections from target
+                cRX(:,chirp,:) = reshape(cRX(:,chirp,:), size(cRX,1),size(cRX,3)) + fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXclut, mangle, fmcw.f0, fmcw.c0));
+
+
+            end                       
+
+        end
+    end
+    
     % Radar RX Signal Processing
+    xRX = xRX + cRX; %add target and clutter signals
     sb = zeros(size(xRX));
     for ant = 1:fmcw.RXant
         sb(:,:,ant) = conj(dechirp(xRX(:,:,ant), xTX)); %Mix Tx with Rx to transform sRx to baseband signal       
@@ -53,9 +121,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
         % discard the TX pause from the signal
         sb = sb(1:fmcw.K,:,:);
     end
-
-
-
 %Received complex signal sb
+end
 end
 
