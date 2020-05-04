@@ -12,13 +12,13 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
-plotAntennas = [1:8]; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
-Pedestrians = 0;
-Bicycles = 0;
+Pedestrians = 5;
+Bicycles = 5;
 Cars = 0;
-NoTarget = 1; 
+NoTarget = 5; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
@@ -47,17 +47,17 @@ if Pedestrians && add_files
     file_offset = length(files); % #files to keep  
 end
 
-for target = 1:Pedestrians
+parfor target = 1:Pedestrians
     ped = backscatterPedestrian;
     %ped.Name = 'Pedestrian1';
     ped.Height = 1+rand(); % [1m,2m]
     ped.WalkingSpeed = 1.4*ped.Height; % rand()* 
     ped.OperatingFrequency = fmcw.f0;
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
-    randposx = fmcw.rangeBins(end)*rand();  
-    ped.InitialPosition = [11.5; 0; 0]; %add random posx posy
+    randposx = fmcw.rangeBins(end)*rand();
+    ped.InitialPosition = [randposx; 0; 0]; %add random posx posy
     randangle = rand()*360;
-    ped.InitialHeading = 0; %in degree, heading along x from x=5 to x=7
+    ped.InitialHeading = rand()*360-180; %in degree, heading along x from x=5 to x=7
     
     %Ground Truth
     %targetR: Range (radial dist. from radar to target)
@@ -68,9 +68,10 @@ for target = 1:Pedestrians
     %Model Radar Signal for selected Target
     sb = modelSignal(ped, fmcw);
     sbn = fmcw.addGaussNoise(sb);
-    pRD = fmcw.RDmap(sbn);
-    fmcw.plotRDmap(pRD, [], plotAntennas);
-    plotNoise; 
+    sbc = fmcw.addStaticClutter(sbn);
+    pRD = fmcw.RDmap(sbc);
+    %fmcw.plotRDmap(pRD, [], plotAntennas);
+    %plotNoise; 
     
     %Label output and save
     label = [targetR, targetV];
@@ -93,12 +94,12 @@ parfor target = 1:Bicycles
     bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
     bike.OperatingFrequency = fmcw.f0;
     randposx = fmcw.rangeBins(end)*rand();
-    posy = 25*rand();
-    bike.InitialPosition = [4;2;0];
-    randangle = rand()*360;
-    bike.InitialHeading = 360-90; %in degree, heading along x-axis
+    randposy = randposx* rand() - fmcw.rangeBins(end)/2;
+    bike.InitialPosition = [randposx;randposy;0];
+    randangle = rand()*360-180;
+    bike.InitialHeading = randangle; %in degree, heading along x-axis
     randspeed = rand()*fmcw.velBins(end);
-    bike.Speed = 5; %m/s
+    bike.Speed = randspeed; %m/s
     bike.Coast = false; %Padeling movements?
     bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     % bike.AzimutAngles = fmcw.azimut; %default 77GHz cyclist <- use default
@@ -114,9 +115,10 @@ parfor target = 1:Bicycles
     %Model Radar Signal for selected Target
     sb = modelSignal(bike, fmcw);
     sbn = fmcw.addGaussNoise(sb);
-    bRD = fmcw.RDmap(sbn);
-    fmcw.plotRDmap(bRD, [], plotAntennas);
-    plotNoise;
+    sbc = fmcw.addStaticClutter(sbn);
+    bRD = fmcw.RDmap(sbc);
+    %fmcw.plotRDmap(bRD, [], plotAntennas);
+    %plotNoise;
     
     %Label output and save
     label = [targetR, targetV];
