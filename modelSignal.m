@@ -9,23 +9,6 @@ function [sb] = modelSignal(target, fmcw)
 maxClutterObjects = 30;
 numClutterObjects = ceil(rand()*maxClutterObjects);
 
-% %Static Clutter
-% statClutter = {};
-% for obj = 1: numClutterObjects
-%     Robj = rand()*fmcw.rangeBins(end)+fmcw.dR; %static Clutter Range
-%     azmax = 2*rand()*180/Robj; %Azimut width
-%     elmax = 2*rand()*90/Robj; %Elevation width
-%     azimut = rand()*180-90;
-%     elev = rand()*180-90;
-%     azpatangs = [azimut:0.1:azimut+azmax];
-%     elpatangs = [elev:0.1:elev+elmax];
-%     rcspattern = 10.0*cosd(4*(elpatangs - elmax))'*cosd(4*(azpatangs - azmax));
-%     imagesc(azpatangs,elpatangs,rcspattern);
-%     statClutter{obj} = phased.BackscatterRadarTarget('Model','Swerling2',...
-%     'AzimuthAngles',azpatangs,'ElevationAngles',elpatangs,...
-%     'RCSPattern',rcspattern,'OperatingFrequency',fmcw.f0);
-% end
-
 
 %% Start Radar Measurement
 % Collect sampled reflections within the current chirpInterval for L consecutive chirps
@@ -62,9 +45,12 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
         end
     end
 
-    %Static Clutter
+    
+    %NOT RECOMMENDED: Backscatter Static Clutter
+    % Rather use function fmcw.addStaticClutter(s_beat) for better
+    % simulation performance
     cRX = zeros(size(xRX));
-    if fmcw.staticClutter
+    if fmcw.backscatterStatClutter
         for obj = 1:numClutterObjects
             Robj = rand()*fmcw.rangeBins(end)+fmcw.dR; %static Clutter Range
             Azobj = rand()*180-90;
@@ -94,8 +80,6 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 xtrans = fmcw.MSchan(xTX,posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
                 RXclut = ClutterObj(xtrans,true); %receive sum of Reflections from target
                 cRX(:,chirp,:) = reshape(cRX(:,chirp,:), size(cRX,1),size(cRX,3)) + fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXclut, mangle, fmcw.f0, fmcw.c0));
-
-
             end                       
 
         end

@@ -31,7 +31,7 @@ classdef FMCWradar
         %Noise and Clutter
         NoiseFloor = -70; %dB
         dynamicNoise = 10; %dB, +/- NoiseFloor
-        staticClutter = false;
+        backscatterStatClutter = false;
         
         %Initialized in function:   init_RDmap(obj)
         chirpInterval = [];
@@ -208,7 +208,8 @@ classdef FMCWradar
             sz = size(s_beat);
             noise = sig * randn(sz)+mean;
             
-            noiseR = sig * randn(sz)+mean;
+            noiseR = noise;
+            %noiseR = sig * randn(sz)+mean;
             for a = 1:size(s_beat,3)
                 FN = fftshift(fft(noiseR(:,:,a),[],1),1);
                 FNR = zeros(size(FN));
@@ -218,7 +219,7 @@ classdef FMCWradar
                 end
                 noiseR(:,:,a) = ifft(ifftshift(FNR,1),[],1);
             end
-            RnoiseFaktor = rand()*3;
+            RnoiseFaktor = 1.5+rand()*1.5;
             
             
             % Add Noise and range dep. Clutter to signal
@@ -233,9 +234,9 @@ classdef FMCWradar
         
         %% Add static Clutter
         function sbC = addStaticClutter(obj,s_beat)
-            % NOT IDEAL... CONSIDER ADDING BACKSCATTER TARGETS INSTEAD
+            % Faster Performance than backscatter targets
             Pclutter_min = obj.NoiseFloor; %dB
-            AmpMargin = 20; %dB
+            AmpMargin = 10; %dB
             
             %Adjust Noise Floor to match FFT outputs
             FFToffset = -60; %dB
@@ -251,8 +252,8 @@ classdef FMCWradar
             ranges = obj.rangeBins(Ridx);
             
             % Rayleigh amplitudes with margin 15 dB
-            % TODO: Add Range dependencies
-            rAmpdiff = raylrnd(rand(1,statTarg))*AmpMargin/2;
+            % TODO: Add Range dependencies (Friis)
+            rAmpdiff = raylrnd(rand(1,statTarg))*AmpMargin;
             rAmp = (Pclutter_min)*ones(1,statTarg) + (AmpMargin-rAmpdiff);
             rAmp = sqrt(10.^((rAmp+FFToffset)/10)); %Amp = sqrt(Pn), dB->scalar
             
@@ -260,11 +261,13 @@ classdef FMCWradar
 %             fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *ranges;
 %             fd = -obj.f0 * 2/obj.c0 * 0;
 %             phase = obj.f0*2/obj.c0*ranges;
-            clutter = zeros(obj.K,obj.L);
+            clutter = zeros(obj.K,obj.L, size(s_beat,3));
+            
             rangeIdxMat = transpose(meshgrid(0:obj.K-1, 1:obj.L)); %Matrix 0:K Samples(time) in L (Chirps) columns
             dopplerIdxMat = meshgrid(0:obj.L-1, 1:obj.K); %Matrix 0:L in K lines
 
             for target = 1:statTarg
+                azimut = rand()*180-90;
                 for R = -obj.dR:obj.dR:+obj.dR
                     for v = -obj.dV:obj.dV:obj.dV
                         fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *(ranges(target)+R);
@@ -274,13 +277,20 @@ classdef FMCWradar
                         rangeMat   = exp(1j*2*pi * fR/obj.fs * rangeIdxMat); % t = over K Sample values(time) add f_R, to each Chirp (L lines)
                         dopplerMat = exp(1j*2*pi * fd*obj.chirpInterval* dopplerIdxMat); % t = over L Chirps add f_D, to each Sample (lines)
                         phaseMat   = exp(1j*2*pi * phase); %phase difference due to Range
-                        
+
                         if R==0 && v==0
                             ampScale = 1; %main peak in center
                         else
                             ampScale = (rand()*0.75); %sidelobes with lower amp
                         end
-                        clutter = clutter + rAmp(target)*ampScale* (rangeMat.*dopplerMat.*phaseMat);
+                        
+                        %Add phase shift from antenna array
+                        %clutter = clutter + rAmp(target)*ampScale* (rangeMat.*dopplerMat.*phaseMat);
+                        dx = (obj.c0/obj.f0)/2 * sind(azimut);
+                        for ant= 1:size(s_beat,3)
+                            phaseShiftArray = exp(1j * 2*pi*obj.f0* (ant-1)*dx/obj.c0);
+                            clutter(:,:,ant) = clutter(:,:,ant) + rAmp(target)*ampScale* (rangeMat.*dopplerMat.*phaseMat)* phaseShiftArray;
+                        end
                     end
                 end
                 

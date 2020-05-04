@@ -12,7 +12,7 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
-plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = [1:8]; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
 Pedestrians = 0;
