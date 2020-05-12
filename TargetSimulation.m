@@ -15,10 +15,10 @@ c_0 = 299792458;
 plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
-Pedestrians = 5;
-Bicycles = 5;
-Cars = 0;
-NoTarget = 5; 
+Pedestrians = 0;
+Bicycles = 0;
+Cars = 1;
+NoTarget = 0; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
@@ -47,17 +47,17 @@ if Pedestrians && add_files
     file_offset = length(files); % #files to keep  
 end
 
-parfor target = 1:Pedestrians
+for target = 1:Pedestrians
     ped = backscatterPedestrian;
-    %ped.Name = 'Pedestrian1';
     ped.Height = 1+rand(); % [1m,2m]
     ped.WalkingSpeed = 1.4*ped.Height; % rand()* 
     ped.OperatingFrequency = fmcw.f0;
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     randposx = fmcw.rangeBins(end)*rand();
-    ped.InitialPosition = [randposx; 0; 0]; %add random posx posy
-    randangle = rand()*360;
-    ped.InitialHeading = rand()*360-180; %in degree, heading along x from x=5 to x=7
+    randposy = randposx* (rand()-0.5);
+    ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
+    heading = rand()*360-180;
+    ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
     
     %Ground Truth
     %targetR: Range (radial dist. from radar to target)
@@ -70,11 +70,11 @@ parfor target = 1:Pedestrians
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     pRD = fmcw.RDmap(sbc);
-    %fmcw.plotRDmap(pRD, [], plotAntennas);
-    %plotNoise; 
+    fmcw.plotRDmap(pRD, [targetR,targetV], plotAntennas);
+    plotNoise; 
     
     %Label output and save
-    label = [targetR, targetV];
+    label = [targetR, targetV, heading];
     saveMat(pRD, label, 'Pedestrian', target+file_offset, SimDataPath)
 end
 
@@ -88,16 +88,17 @@ if Bicycles && add_files
     file_offset = length(files); % #files to keep  
 end
 
-parfor target = 1:Bicycles
+for target = 1:Bicycles
     bike = backscatterBicyclist;
-    bike.NumWheelSpokes = 20;
+    Spokes = [20, 24, 28, 32, 36];
+    bike.NumWheelSpokes = Spokes(ceil(rand()*length(Spokes)));
     bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
     bike.OperatingFrequency = fmcw.f0;
     randposx = fmcw.rangeBins(end)*rand();
-    randposy = randposx* rand() - fmcw.rangeBins(end)/2;
+    randposy = randposx* (rand()-0.5);
     bike.InitialPosition = [randposx;randposy;0];
-    randangle = rand()*360-180;
-    bike.InitialHeading = randangle; %in degree, heading along x-axis
+    heading = rand()*360-180;
+    bike.InitialHeading = heading; %in degree, heading along x-axis
     randspeed = rand()*fmcw.velBins(end);
     bike.Speed = randspeed; %m/s
     bike.Coast = false; %Padeling movements?
@@ -117,11 +118,11 @@ parfor target = 1:Bicycles
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     bRD = fmcw.RDmap(sbc);
-    %fmcw.plotRDmap(bRD, [], plotAntennas);
+    fmcw.plotRDmap(bRD, [], plotAntennas);
     %plotNoise;
     
     %Label output and save
-    label = [targetR, targetV];
+    label = [targetR, targetV, heading];
     saveMat(bRD, label, 'Bicycle', target+file_offset, SimDataPath)
 end
 
@@ -133,16 +134,33 @@ if Cars && add_files
     files = dir([SimDataPath,'Car/Car*']);
     file_offset = length(files); % #files to keep  
 end
-parfor target = 1:Cars
-    targetR = [10]; %add more with ;
-    targetV = [5]; %add more with ;
+for target = 1:Cars
+    car = Car;
+    car = car.initCar(0);
+    %randxpos = rand()*fmcw.rangeBins(end);
+    %randypos = randxpos*(rand()-0.5);
+    %heading = rand()*360-180;
+    car.xPos = 10; % x dist from radar
+    car.yPos = 4; % y dist from radar
+    car.heading = 20; %degrees, from x-axis
+    car.vel = 5; %m/s
     
-    sb = simulateSignal(fmcw, targetR, targetV, 0, false);
-    cRD = fmcw.RDmap(sb);
+    % Calculate label
+    relangle = atand(car.yPos/car.xPos)-car.heading; %angle between heading and radial velocity
+    targetR = sqrt(car.xPos^2+car.yPos^2); %radial distance
+    targetV = cosd(relangle)*car.vel; %radial velocity
+    
+    cartarget = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
+    
+    
+    sb = modelSignal(cartarget, fmcw);
+    sbn = fmcw.addGaussNoise(sb);
+    sbc = fmcw.addStaticClutter(sbn);
+    cRD = fmcw.RDmap(sbc);
     fmcw.plotRDmap(cRD, [targetR, targetV], plotAntennas);
     
     %Label output and save
-    label = [targetR, targetV];
+    label = [targetR, targetV, car.heading];
     saveMat(cRD, label, 'Car', target+file_offset, SimDataPath)
 end
 

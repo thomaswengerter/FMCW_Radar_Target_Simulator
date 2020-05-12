@@ -19,6 +19,8 @@ xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.Propagation_fs),fmcw.L, fmcw.R
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
     xTX = fmcw.MStrx(fmcw.chirps()); % Radar transmitter signal
+    
+    %Target Backscatter
     if ~isempty(target)
         for chirp = 1:fmcw.L
             % Looping through chirps
@@ -28,6 +30,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
             shape = size(post);
             N = shape(end); % getNumScatters(target)
+            fmcw.MSchan.release();
             xtrans = fmcw.MSchan(repmat(xTX,1,N),posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
             RXsig = reflect(target,xtrans,angle); %receive sum of Reflections from target
 
@@ -39,9 +42,25 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                     mangle(1) = mangle(1)-360;
                 end
             end
-
-            xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, mangle, fmcw.f0, fmcw.c0));       
-
+            
+            CarTarget = 0;
+            try
+                % TODO: Find better Criteria
+                CarTarget = strcmp(target.ID(1:end-1), 'Vehicle');
+                if CarTarget == 0
+                    error('Could not identify Car ID %s!', car.ID)
+                end
+            catch
+                %No car
+            end
+                  
+            % TODO: Check why mangle required for other targets????
+            if CarTarget
+                angle(angle>180) = angle(angle>180)-360;
+                xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, angle, fmcw.f0, fmcw.c0)); 
+            else
+                xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, mangle, fmcw.f0, fmcw.c0)); 
+            end
         end
     end
 
