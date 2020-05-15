@@ -25,11 +25,11 @@ classdef FMCWradar
         TXpeakPower = 0.01; %10dBm in W
         TXgain = 17;
         RXgain = 15;
-        RXNF = 0;
+        RXNF = 10;
         RXant = 8;
         
         %Noise and Clutter
-        NoiseFloor = -70; %dB
+        NoiseFloor = -70; %dB (+/-dynamicNoise +RXNF +dBoffset)
         dynamicNoise = 10; %dB, +/- NoiseFloor
         backscatterStatClutter = false;
         
@@ -42,6 +42,8 @@ classdef FMCWradar
         rangeBins = []; % Range Bins RD map
         velBins = []; % Velocity Bins RD map
         Rmaxsamp = []; % max unambiguous Range (limited by fs)
+        numStatTargets = []; % Rayleigh Mean for the number of static clutter targets
+        dBoffset = []; % offset for RD map plot
         
         %Initialized in function:   generateChirpSequence(obj)
         Propagation_fs = []; %sampling rate of the modelled signal
@@ -87,7 +89,8 @@ classdef FMCWradar
             obj.velBins = (-obj.L/2:obj.L/2-1) *obj.dV;
             %RmaxChirp = (chirpInterval-chirpTime)*c0/2; %max unabiguous Range limited by receiving interval
             obj.Rmaxsamp = obj.fs/4*obj.c0*obj.chirpTime/obj.sweepBw; %max Range limited by sampling freq
-
+            obj.numStatTargets = 20;
+            obj.dBoffset = -60;
         end
         
         
@@ -148,6 +151,7 @@ classdef FMCWradar
             
         end
         
+        
         %% Generate antenna pattern
         function obj = generateAntPattern(obj)
             az = -180:10:180;
@@ -175,12 +179,11 @@ classdef FMCWradar
         end
         
         
-        
         %% Add Gaussian noise with varying standard deviation to the signal
         function s_beatnoisy = addGaussNoise(obj, s_beat)
             % Input:    s_beat (dimension of KxL)
             % obj.SNR is determining the amplitude of additional noise
-            printNoiseCharacteristics = true; %DEBUG
+            printNoiseCharacteristics = true; %DEBUG: print SNR and Noise Lv
             
             %Adjust Noise Floor to match FFT outputs
             FFToffset = -60; %dB
@@ -219,7 +222,7 @@ classdef FMCWradar
                 end
                 noiseR(:,:,a) = ifft(ifftshift(FNR,1),[],1);
             end
-            RnoiseFaktor = 1.5+rand()*1.5;
+            RnoiseFaktor = 0.5+rand()*2;
             
             
             % Add Noise and range dep. Clutter to signal
@@ -236,26 +239,25 @@ classdef FMCWradar
         function sbC = addStaticClutter(obj,s_beat)
             % Faster Performance than backscatter targets
             Pclutter_min = obj.NoiseFloor; %dB
-            AmpMargin = 10; %dB
             
             %Adjust Noise Floor to match FFT outputs
             FFToffset = -60; %dB
             
             % Init random Number of static Targets
-            statTarg = ceil(raylrnd(rand())/3*length(obj.rangeBins))+2; %generate a random amount of static targets
-            %statTarg ~ [1, 80] targets on 160 Range bins
+            statTarg = ceil(raylrnd(1)*obj.numStatTargets); %generate a random amount of static targets
+            %statTarg ~ [1, 60] targets on 160 Range bins
             
             
             % Rayleigh distances
-            Ridx = floor(raylrnd(rand(1,statTarg))/2*length(obj.rangeBins))+1;
+            Ridx = floor(raylrnd(ones(statTarg,1))* length(obj.rangeBins)/3)+1;
             Ridx(Ridx>length(obj.rangeBins)) = ceil(rand()*length(obj.rangeBins));
             ranges = obj.rangeBins(Ridx);
             
-            % Rayleigh amplitudes with margin 15 dB
-            % TODO: Add Range dependencies (Friis)
-            rAmpdiff = raylrnd(rand(1,statTarg))*AmpMargin;
-            rAmp = (Pclutter_min)*ones(1,statTarg) + (AmpMargin-rAmpdiff);
-            rAmp = sqrt(10.^((rAmp+FFToffset)/10)); %Amp = sqrt(Pn), dB->scalar
+            % Rayleigh amplitudes with margin 10 dB
+            AmpMargin = 15; %dB variance of Amplitude
+            rAmp = obj.NoiseFloor - AmpMargin * raylrnd(ones(1,statTarg))+10;
+            rangeAtt = 2*AmpMargin * (ranges/obj.rangeBins(end)); % Decay of clutter Power with Range ~R^2
+            rAmp = sqrt(10.^((rAmp-rangeAtt+FFToffset)/10)); %Amp = sqrt(Pn), dB->scalar
             
             % Generate signals for clutter
 %             fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *ranges;
@@ -321,12 +323,6 @@ classdef FMCWradar
                 SB = fft(sb,[], 1); %/length(s_beat(:,1)) FFT 1 of every column with K time samples
                 SB = fftshift(SB,1);
 
-    %             % DEBUG plot
-    %             % Show first FFT with Range resolution
-    %             figure
-    %             x = -length(s_beat(:,1))/2*obj.dR:obj.dR:length(s_beat(:,1))/2*obj.dR-obj.dR;
-    %             plot(x, SB(:,10)) %FFT of 10th chirp
-
                 % 2nd FFT for DOPPLER
                 SB = fft(SB, [], 2); % /256  FFT 2 of every row with L chirps
                 SB = fftshift(SB,2);
@@ -363,14 +359,15 @@ classdef FMCWradar
 
                     RDmap_plt = insertMarker(RDmap_plt, [targetVidx, targetRidx]); % add Marker
                     %bRD = insertShape(bRD,'circle',[150 280 35],'LineWidth',5);
-                    fprintf('Simulation of Target starting at Range %d m and radial Velocity %d m/s.\n', ...
+                    fprintf('Simulation of Target starting at Range %.2f m and radial Velocity %.2f m/s.\n', ...
                     target(1), target(2))
                 end
-                imagesc(x,y,RDmap_plt(:,:,1))
+                imagesc(x,y,RDmap_plt(:,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
                 set(gca,'YDir','normal')
                 xlabel('Velocity in m/s')
                 ylabel('Range in m')
                 colorbar
+                colormap jet
                 title(['Contour of Backscattered Power at RX antenna ', num2str(ant), ' in dB'])
             end
             
