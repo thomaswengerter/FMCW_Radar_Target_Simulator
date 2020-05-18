@@ -55,8 +55,10 @@ for target = 1:Pedestrians
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     randposx = fmcw.rangeBins(end)*rand();
     randposy = randposx* (rand()-0.5);
-    ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
-    heading = rand()*360-180;
+%     ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
+    ped.InitialPosition = [11.5; -2; 0];
+%     heading = rand()*360-180;
+    heading = 0;
     ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
     
     %Ground Truth
@@ -70,7 +72,7 @@ for target = 1:Pedestrians
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     pRD = fmcw.RDmap(sbc);
-    fmcw.plotRDmap(pRD, [targetR,targetV], plotAntennas);
+    fmcw.plotRDmap(pRD, [], plotAntennas);
     plotNoise; 
     
     %Label output and save
@@ -99,7 +101,7 @@ for target = 1:Bicycles
     bike.InitialPosition = [randposx;randposy;0];
     heading = rand()*360-180;
     bike.InitialHeading = heading; %in degree, heading along x-axis
-    randspeed = rand()*fmcw.velBins(end);
+    randspeed = rand()*10; %max 10m/s
     bike.Speed = randspeed; %m/s
     bike.Coast = false; %Padeling movements?
     bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
@@ -141,9 +143,9 @@ for target = 1:Cars
     %randypos = randxpos*(rand()-0.5);
     %heading = rand()*360-180;
     car.xPos = 10; % x dist from radar
-    car.yPos = 4; % y dist from radar
-    car.heading = 20; %degrees, from x-axis
-    car.vel = 5; %m/s
+    car.yPos = -3; % y dist from radar
+    car.heading = 25; %degrees, from x-axis
+    car.vel = 10; %m/s
     
     % Calculate label
     relangle = atand(car.yPos/car.xPos)-car.heading; %angle between heading and radial velocity
@@ -157,7 +159,9 @@ for target = 1:Cars
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     cRD = fmcw.RDmap(sbc);
-    fmcw.plotRDmap(cRD, [targetR, targetV], plotAntennas);
+    fmcw.plotRDmap(cRD, [], plotAntennas);
+    plotNoise;
+    
     
     %Label output and save
     label = [targetR, targetV, car.heading];
@@ -180,7 +184,7 @@ parfor target = 1:Syntetics
     
     sb = simulateSignal(fmcw, targetR, targetV, 0, false);
     sRD = fmcw.RDmap(sb);
-    fmcw.plotRDmap(sRD, [targetR, targetV], plotAntennas);
+    fmcw.plotRDmap(sRD, [], plotAntennas);
     
     %Label output and save
     label = [targetR, targetV];

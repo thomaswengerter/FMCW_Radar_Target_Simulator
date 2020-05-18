@@ -48,7 +48,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 % TODO: Find better Criteria
                 CarTarget = strcmp(target.ID(1:end-1), 'Vehicle');
                 if CarTarget == 0
-                    error('Could not identify Car ID %s!', car.ID)
+                    error('Could not identify Car ID %s!', target.ID)
                 end
             catch
                 %No car
