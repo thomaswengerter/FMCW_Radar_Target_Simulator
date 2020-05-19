@@ -135,7 +135,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## Authors
 
-* **Thomas Wengerter** - *Initial work* - [PurpleBooth](https://github.com/thomaswengerter)
+* **Thomas Wengerter** - *Initial work* - [thomaswengerter](https://github.com/thomaswengerter)
 
 See also the list of [contributors](https://github.com/thomaswengerter/FMCW_Radar_Target_Simulator/contributors) who participated in this project.
 
