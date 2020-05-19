@@ -28,10 +28,13 @@ classdef FMCWradar
         RXNF = 10;
         RXant = 8;
         
-        %Noise and Clutter
+        printNoiseCharacteristics = false; %Print the SNR and noise level
+        %Noise and Clutter // DO NOT CHANGE
         NoiseFloor = -70; %dB (+/-dynamicNoise +RXNF +dBoffset)
         dynamicNoise = 10; %dB, +/- NoiseFloor
         backscatterStatClutter = false;
+        numStatTargets = 20; % Rayleigh Mean for the number of static clutter targets
+        dBoffset = -60; % offset for RD map plot
         
         %Initialized in function:   init_RDmap(obj)
         chirpInterval = [];
@@ -42,8 +45,6 @@ classdef FMCWradar
         rangeBins = []; % Range Bins RD map
         velBins = []; % Velocity Bins RD map
         Rmaxsamp = []; % max unambiguous Range (limited by fs)
-        numStatTargets = []; % Rayleigh Mean for the number of static clutter targets
-        dBoffset = []; % offset for RD map plot
         
         %Initialized in function:   generateChirpSequence(obj)
         Propagation_fs = []; %sampling rate of the modelled signal
@@ -89,8 +90,6 @@ classdef FMCWradar
             obj.velBins = (-obj.L/2:obj.L/2-1) *obj.dV;
             %RmaxChirp = (chirpInterval-chirpTime)*c0/2; %max unabiguous Range limited by receiving interval
             obj.Rmaxsamp = obj.fs/4*obj.c0*obj.chirpTime/obj.sweepBw; %max Range limited by sampling freq
-            obj.numStatTargets = 20;
-            obj.dBoffset = -60;
         end
         
         
@@ -183,7 +182,7 @@ classdef FMCWradar
         function s_beatnoisy = addGaussNoise(obj, s_beat)
             % Input:    s_beat (dimension of KxL)
             % obj.SNR is determining the amplitude of additional noise
-            printNoiseCharacteristics = true; %DEBUG: print SNR and Noise Lv
+            obj.printNoiseCharacteristics = false; %DEBUG: print SNR and Noise Lv
             
             %Adjust Noise Floor to match FFT outputs
             FFToffset = -60; %dB
@@ -201,7 +200,7 @@ classdef FMCWradar
             else
                 Ps = 1/(size(s_beat,1))*sum(abs(s_beat(:,end,1).^2));
             end
-            if Pn>Ps*10 && Ps>0 && printNoiseCharacteristics
+            if Pn>Ps*10 && Ps>0 && obj.printNoiseCharacteristics
                 fprintf('Caution: Noise Power %.2f dB exceeds RX beat signal power %.2f dB!\nConsider setting a lower Noise Floor. \n', FFTnoiseFloor, 10*log10(Ps))
             end
             
@@ -226,7 +225,7 @@ classdef FMCWradar
             
             
             % Add Noise and range dep. Clutter to signal
-            if printNoiseCharacteristics
+            if obj.printNoiseCharacteristics
                 SNR = Ps/Pn;
                 fprintf('Generated gaussian Noise Floor at %.2f dB with Range dependency factor %.2f.\nSNR is %.5f (%.2f dB).\n', obj.NoiseFloor+dynOffset, RnoiseFaktor, SNR, 10*log10(SNR));
             end

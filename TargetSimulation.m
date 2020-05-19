@@ -30,7 +30,7 @@ fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.ant
 fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
 
 
-% Set dictionary to save files
+% Set dictionary to save results
 SimDataPath = 'SimulationData/';
 add_files = false;
 if ~add_files && exist(SimDataPath(1:end-1),'dir')
