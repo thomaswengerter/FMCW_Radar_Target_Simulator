@@ -17,6 +17,9 @@ classdef Car
         rTire = [];
         
         
+        ReceptionAngle = 150;
+        ReflectionsPerContourPoint = 1; % SET THIS PARAMETER FOR RESOLUTION
+        WheelReflectionsFactor = 5; % SET TO EMPHASIZE WHEELS
         drefPoints = []; %Number of reflection points
         types = 2; %Number of possible car object types
         
@@ -40,7 +43,7 @@ classdef Car
                 obj.length = 4.5;
                 obj.heightAxis = 0.8;
                 obj.cornerRadius = 0.8; %radius of contour corners
-                obj.RCS = load('RCS_AUDI'); %estimated max RCS in Square Meters azi= [0:180]
+                obj.RCS = [10, 7, 6, 5, 4, 4, 3, 2, 5, 20, 5, 0, 0, 0, 1, 3, 5, 10, 15]; %measured RCS in dBsm azi= [0:180]
                 obj.rTire = 0.3; %radius of a tire
             elseif typeNr == 1
                 %TODO: add random cars, SUVs, trucks, ...
@@ -347,12 +350,9 @@ classdef Car
             % If relative DOA is larger than the specif scattering Point's
             % ReceptionAngle, discard the hidden Contour Point
             
-            ReceptionAngle = 120; % SET RECEPTION ANGLE APPROPRIATELY
-            % ReceptionAngle 90° -> [-45°,45°] 
-            
             azi = atand(Contour(:,2)./Contour(:,1)); %azimuth of target Point
             DOA = obj.normAngle(azi+180); %angle of car relative to radar ray 
-            filter = abs(obj.normAngle(DOA-Contour(:,3))) > ReceptionAngle/2;
+            filter = abs(obj.normAngle(DOA-Contour(:,3))) > obj.ReceptionAngle/2;
             Contour(filter,:) = [];
             DOA(filter) = [];
             
@@ -371,7 +371,7 @@ classdef Car
             % y in [-rangeBins(end), rangeBins(end)]    with Resolution dR
             % 
             
-            ReflectionsPerPoint = 1;
+            ReflectionsPerPoint = obj.ReflectionsPerContourPoint;
             
             %Scatterer = [xPos, yPos, vel, RCS]
             Scatterer = zeros(ReflectionsPerPoint*size(Contour,1), 4);
@@ -401,7 +401,7 @@ classdef Car
                 
                 %Calculate RCS for this
                 hittingAngle = abs(obj.normAngle(DOA(i)-Contour(i,3))); %hitting angle at Contour Point
-                relRCS = (1-2*hittingAngle/ReceptionAngle); % const RCS for all reflections from one Contour Point!!!!!!!!!
+                relRCS = (1-2*hittingAngle/obj.ReceptionAngle); % const RCS for all reflections from one Contour Point!!!!!!!!!
                 
                 %Add to List
                 Scatterer((i-1)*ReflectionsPerPoint+1:i*ReflectionsPerPoint,:) = [Contour(i,1)+x, Contour(i,2)+y, obj.vel*ones(size(x)), relRCS*ones(size(x))];
@@ -448,8 +448,7 @@ classdef Car
                 
             % Sample random Positions around Wheel center
             % wheelScatterer = [#wheel, reflections, [xPos,yPos,vel,RCS] ]
-            WheelReflectionsFactor = 5;
-            wheelScatterer = zeros(4,ReflectionsPerPoint*WheelReflectionsFactor,4); 
+            wheelScatterer = zeros(4,ReflectionsPerPoint*obj.WheelReflectionsFactor,4); 
             
             for i = 1:4 % 4 Wheels
                 %v_wheeel in range vtarget + [-vd, +vd]
@@ -465,15 +464,15 @@ classdef Car
                     % Coordinate Transform in Wheel Center: xi, yi
                     varx = 0.15*1.5; %max around inside 0.3m vehicle body
                     vary = obj.rTire; % ~radius of tire 
-                    xi = varx* raylrnd(ones(ReflectionsPerPoint*WheelReflectionsFactor,1));
-                    yi = vary* randn(ReflectionsPerPoint*WheelReflectionsFactor,1);
+                    xi = varx* raylrnd(ones(ReflectionsPerPoint*obj.WheelReflectionsFactor,1));
+                    yi = vary* randn(ReflectionsPerPoint*obj.WheelReflectionsFactor,1);
                     % Sample local velocity in xi-yi-plane
                     if yi>(obj.rTire)
                         vi = 0; % static tire case reflection
                     else
                         % tire reflection with rotational velocity
                         %velBins = (-obj.vel:fmcw.dV:obj.vel);
-                        vi = obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* (rand(ReflectionsPerPoint*WheelReflectionsFactor,1)-0.5)*2;
+                        vi = obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* (rand(ReflectionsPerPoint*obj.WheelReflectionsFactor,1)-0.5)*2;
                     end
                     
                     hittingAngle = abs(obj.normAngle(wDOA(i)-WheelCenter(i,3))); %hitting angle at Contour Point
@@ -497,15 +496,15 @@ classdef Car
                     % Coordinate Transform in Wheel Center: xi, yi
                     varx = 0.15; %max around inside 0.3m vehicle body
                     vary = obj.rTire; % ~radius of tire 
-                    xi = varx* raylrnd(ones(floor(ReflectionsPerPoint*WheelReflectionsFactor/2),1));
-                    yi = vary* randn(floor(ReflectionsPerPoint*WheelReflectionsFactor/2),1);
+                    xi = varx* raylrnd(ones(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1));
+                    yi = vary* randn(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
                     % Sample local velocity in xi-yi-plane
                     if yi>(obj.rTire)
                         vi = 0; % static tire case reflection
                     else
                         % tire reflection with rotational velocity
                         %velBins = (-obj.vel:fmcw.dV:0);
-                        vi = -obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* rand(floor(ReflectionsPerPoint*WheelReflectionsFactor/2),1);
+                        vi = -obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* rand(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
                     end
                     
                     hittingAngle = abs(obj.normAngle(wDOA(i)-180-WheelCenter(i,3))); %hitting angle at back of wheel
@@ -513,14 +512,14 @@ classdef Car
                     RCSy(abs(yi)<obj.rTire) = (obj.rTire-abs(yi(abs(yi)<obj.rTire)))/obj.rTire; %RCS relative to reflection Position inside tire
                     hiddenFactor = obj.heightAxis/fmcw.height;
                     %ADD FACTOR FOR REFLECTIONS UNDER CAR
-                    relRCS = (1-2*hittingAngle/180) .* RCSy.* hiddenFactor;
+                    relRCS = 0.5* (1-2*hittingAngle/180) .* RCSy.* hiddenFactor;
                     
                     %Trafo back to original Coordinate System
                     [x,y] = toLocal(obj, xi, yi, WheelCenter(i,3)-180);
                     
-                    wheelScatterer(i,1:floor(ReflectionsPerPoint*WheelReflectionsFactor/2),:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y,  obj.vel+vi, relRCS];
+                    wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y,  obj.vel+vi, relRCS];
                     
-                    scatter(wheelScatterer(i,1:floor(ReflectionsPerPoint*WheelReflectionsFactor/2),1),wheelScatterer(i,1:floor(ReflectionsPerPoint*WheelReflectionsFactor/2),2), [], 'm.')
+                    scatter(wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1),wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),2), [], 'm.')
                     hold on
                     
                 elseif hidden(i) == 2
@@ -530,15 +529,15 @@ classdef Car
                     % Coordinate Transform in Wheel Center: xi, yi
                     varx = 0.15; %max around inside 0.3m vehicle body
                     vary = obj.rTire; % ~radius of tire 
-                    xi = varx+ varx/2* randn(floor(ReflectionsPerPoint*WheelReflectionsFactor/2),1);
-                    yi = vary* randn(floor(ReflectionsPerPoint*WheelReflectionsFactor/2),1);
+                    xi = varx+ varx/2* randn(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
+                    yi = vary* randn(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
                     % Sample local velocity in xi-yi-plane
                     if yi>(obj.rTire)
                         vi = 0; % static tire case reflection
                     else
                         % tire reflection with rotational velocity
                         %velBins = (-obj.vel:fmcw.dV:0);
-                        vi = -obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* rand(floor(ReflectionsPerPoint*WheelReflectionsFactor/2),1);
+                        vi = -obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* rand(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
                     end
                     
                     hittingAngle = abs(mod(obj.normAngle(wDOA(i)-WheelCenter(i,3)),180)); %hitting angle in front/back of wheel
@@ -547,14 +546,14 @@ classdef Car
                     hiddenFactor = obj.heightAxis/fmcw.height;
                     % DIFFER BETWEEN BACK/FRONT AND ADD ATT FACTOR FOR
                     % REFLECTIONS UNDER VEHICLE
-                    relRCS = (1-2*hittingAngle/180).* RCSy.* hiddenFactor;
+                    relRCS = 0.5* (1-2*hittingAngle/180).* RCSy.* hiddenFactor;
                     
                     %Trafo back to original Coordinate System
                     [x,y] = toLocal(obj, xi, yi, WheelCenter(i,3)-180);
                     
-                    wheelScatterer(i,1:floor(ReflectionsPerPoint*WheelReflectionsFactor/2),:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y, obj.vel+vi, relRCS];
+                    wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y, obj.vel+vi, relRCS];
                     
-                    scatter(wheelScatterer(i,1:floor(ReflectionsPerPoint*WheelReflectionsFactor/2),1),wheelScatterer(i,1:floor(ReflectionsPerPoint*WheelReflectionsFactor/2),2), [], 'mx')
+                    scatter(wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1),wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),2), [], 'mx')
                     hold on
                 end
             end
@@ -573,14 +572,16 @@ classdef Car
 
             
             %--------------------------------------------------------------
-            % SAMPLE RCS FROM MEASUREMENTS
+            % RCS
             % abs(RCS) for this viewing angle is sampled from measurements
             %
+            
             azi = atand(obj.yPos./obj.xPos); %azimuth of target Point
             DOA = abs(obj.normAngle(azi-180-obj.heading));
-            RCSm2 = obj.RCS.rcs(floor(abs(normAngle(obj,DOA))+1)); % Find RCS for corresponding DOA from measurement data
+            hittingAngle = abs(normAngle(obj,DOA))+1;
+            RCSdBsm = interp1(0:10:180, obj.RCS, hittingAngle); % Find RCS for corresponding DOA from measurement data
             relRCS = 1/sum([Scatterer(:,4)', wheelScatterer(:,4)']) * [Scatterer(:,4)', wheelScatterer(:,4)']; % relative RCS contribution [0,1]
-            RCSsigma = relRCS* RCSm2/100; %in square meters
+            RCSsigma = relRCS* 10^(RCSdBsm/10)/30; %in square meters
             
             
             %--------------------------------------------------------------
@@ -618,7 +619,7 @@ classdef Car
         
         
         %% Reflect incoming Signal
-        function RXsig = reflect(obj, xtrans, angle)
+        function RXsig = reflect(obj, xtrans, ~)
             % Reflect the signal xtrans from the scattering points of the
             % target object. Angle is not required here, but included to
             % simplify automation.

@@ -28,9 +28,9 @@ classdef FMCWradar
         RXNF = 10;
         RXant = 8;
         
-        printNoiseCharacteristics = false; %Print the SNR and noise level
+        printNoiseCharacteristics = true; %Print the SNR and noise level
         %Noise and Clutter // DO NOT CHANGE
-        NoiseFloor = -70; %dB (+/-dynamicNoise +RXNF +dBoffset)
+        NoiseFloor = -130; %dB (+/-dynamicNoise +RXNF +dBoffset)
         dynamicNoise = 10; %dB, +/- NoiseFloor
         backscatterStatClutter = false;
         numStatTargets = 20; % Rayleigh Mean for the number of static clutter targets
@@ -182,14 +182,14 @@ classdef FMCWradar
         function s_beatnoisy = addGaussNoise(obj, s_beat)
             % Input:    s_beat (dimension of KxL)
             % obj.SNR is determining the amplitude of additional noise
-            obj.printNoiseCharacteristics = false; %DEBUG: print SNR and Noise Lv
+            % obj.printNoiseCharacteristics = true; %DEBUG: print SNR and Noise Lv
             
-            %Adjust Noise Floor to match FFT outputs
-            FFToffset = -60; %dB
+%             %Adjust Noise Floor to match FFT outputs
+%             FFToffset = -60; %dB
             
             %Apply offset and add random dynamics to Noise Floor
             dynOffset = ((rand()-0.5)*2)*obj.dynamicNoise;
-            FFTnoiseFloor = obj.NoiseFloor+FFToffset + dynOffset;
+            FFTnoiseFloor = obj.NoiseFloor + dynOffset; %+FFToffset
             
             %Calculate the noise power from the noise floor
             Pn = 10^(FFTnoiseFloor/10);
@@ -237,10 +237,10 @@ classdef FMCWradar
         %% Add static Clutter
         function sbC = addStaticClutter(obj,s_beat)
             % Faster Performance than backscatter targets
-            Pclutter_min = obj.NoiseFloor; %dB
+            % Pclutter_min = obj.NoiseFloor+10; %dB
             
-            %Adjust Noise Floor to match FFT outputs
-            FFToffset = -60; %dB
+%             %Adjust Noise Floor to match FFT outputs
+%             FFToffset = -60; %dB
             
             % Init random Number of static Targets
             statTarg = ceil(raylrnd(1)*obj.numStatTargets); %generate a random amount of static targets
@@ -256,7 +256,7 @@ classdef FMCWradar
             AmpMargin = 15; %dB variance of Amplitude
             rAmp = obj.NoiseFloor - AmpMargin * raylrnd(ones(1,statTarg))+10;
             rangeAtt = 2*AmpMargin * (ranges/obj.rangeBins(end)); % Decay of clutter Power with Range ~R^2
-            rAmp = sqrt(10.^((rAmp-rangeAtt+FFToffset)/10)); %Amp = sqrt(Pn), dB->scalar
+            rAmp = sqrt(10.^((rAmp-rangeAtt)/10)); %Amp = sqrt(Pn), dB->scalar
             
             % Generate signals for clutter
 %             fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *ranges;

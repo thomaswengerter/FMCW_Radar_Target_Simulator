@@ -142,10 +142,11 @@ for target = 1:Cars
     %randxpos = rand()*fmcw.rangeBins(end);
     %randypos = randxpos*(rand()-0.5);
     %heading = rand()*360-180;
-    car.xPos = 10; % x dist from radar
-    car.yPos = -3; % y dist from radar
-    car.heading = 25; %degrees, from x-axis
+    car.xPos = 11; % x dist from radar
+    car.yPos = -2; % y dist from radar
     car.vel = 10; %m/s
+    car.heading = 10; %degrees, from x-axis
+    
     
     % Calculate label
     relangle = atand(car.yPos/car.xPos)-car.heading; %angle between heading and radial velocity
