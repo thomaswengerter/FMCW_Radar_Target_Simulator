@@ -1,14 +1,8 @@
-function [sb] = modelSignal(target, fmcw)
+function [sb] = modelSignal(target, Targets, fmcw)
 %% modelSignal() Summary
 %   This function takes the configured radar 'target' object (from phased
 %   toolbox) as input and generates the radar response for the radar
 %   settings specified in FMCWradar Object 'radar'
-
-
-% Add random static clutter Targets
-maxClutterObjects = 30;
-numClutterObjects = ceil(rand()*maxClutterObjects);
-
 
 %% Start Radar Measurement
 % Collect sampled reflections within the current chirpInterval for L consecutive chirps
@@ -20,13 +14,29 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
     xTX = fmcw.MStrx(fmcw.chirps()); % Radar transmitter signal
     
+    CarTarget = 0;
+    try
+        % TODO: Find better Criteria
+        CarTarget = strcmp(target.ID(1:end-1), 'Vehicle');
+        if CarTarget == 0
+            error('Could not identify Car ID %s!', target.ID)
+        end
+    catch
+        %No car
+    end
+    
     %Target Backscatter
     if ~isempty(target)
         for chirp = 1:fmcw.L
             % Looping through chirps
             [posr,velr,axr] = fmcw.MSradarplt(tsamp); % current Position of Radar
             %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
-            [post,velt,axt] = move(target,tsamp,target.InitialHeading); % start Moving target
+            if CarTarget
+                [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % start Moving target
+            else
+                [post,velt,axt] = move(target,tsamp,target.InitialHeading); % start Moving target
+            end
+            
             [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
             shape = size(post);
             N = shape(end); % getNumScatters(target)
@@ -43,16 +53,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 end
             end
             
-            CarTarget = 0;
-            try
-                % TODO: Find better Criteria
-                CarTarget = strcmp(target.ID(1:end-1), 'Vehicle');
-                if CarTarget == 0
-                    error('Could not identify Car ID %s!', target.ID)
-                end
-            catch
-                %No car
-            end
+            
                   
             % TODO: Check why mangle required for other targets????
             if CarTarget
@@ -68,6 +69,11 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
     %NOT RECOMMENDED: Backscatter Static Clutter
     % Rather use function fmcw.addStaticClutter(s_beat) for better
     % simulation performance
+    
+    % Add random static clutter Targets
+    maxClutterObjects = 30;
+    numClutterObjects = ceil(rand()*maxClutterObjects);
+
     cRX = zeros(size(xRX));
     if fmcw.backscatterStatClutter
         for obj = 1:numClutterObjects

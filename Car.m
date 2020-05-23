@@ -17,7 +17,7 @@ classdef Car
         rTire = [];
         
         
-        ReceptionAngle = 150;
+        ReceptionAngle = 150; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
         ReflectionsPerContourPoint = 1; % SET THIS PARAMETER FOR RESOLUTION
         WheelReflectionsFactor = 5; % SET TO EMPHASIZE WHEELS
         drefPoints = []; %Number of reflection points
@@ -27,6 +27,8 @@ classdef Car
         RCS = [];
         InitialHeading = [];
         TargetPlatform = [];
+        Acceleration = [];
+        N = [];
         CarTarget = [];
     end
     
@@ -449,7 +451,7 @@ classdef Car
             % Sample random Positions around Wheel center
             % wheelScatterer = [#wheel, reflections, [xPos,yPos,vel,RCS] ]
             wheelScatterer = zeros(4,ReflectionsPerPoint*obj.WheelReflectionsFactor,4); 
-            
+            wheelAcceleration = zeros(4, ReflectionsPerPoint*obj.WheelReflectionsFactor, fmcw.chirpsCycle);
             for i = 1:4 % 4 Wheels
                 %v_wheeel in range vtarget + [-vd, +vd]
                 %Smallest velocity in middle, increasing to the sides
@@ -466,14 +468,22 @@ classdef Car
                     vary = obj.rTire; % ~radius of tire 
                     xi = varx* raylrnd(ones(ReflectionsPerPoint*obj.WheelReflectionsFactor,1));
                     yi = vary* randn(ReflectionsPerPoint*obj.WheelReflectionsFactor,1);
+       
                     % Sample local velocity in xi-yi-plane
-                    if yi>(obj.rTire)
-                        vi = 0; % static tire case reflection
-                    else
-                        % tire reflection with rotational velocity
-                        %velBins = (-obj.vel:fmcw.dV:obj.vel);
-                        vi = obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* (rand(ReflectionsPerPoint*obj.WheelReflectionsFactor,1)-0.5)*2;
-                    end
+                    vi = zeros(size(yi));
+                    vi(yi>(obj.rTire)) = 0; % static tire case reflection
+                    % tire reflection with rotational velocity
+                    %velBins = (-obj.vel:fmcw.dV:obj.vel);
+                    vi(yi<=(obj.rTire)) = obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire.* (rand(sum(yi<=(obj.rTire)),1)-0.5)*2;
+                    
+                    
+                    % Acceleration
+                    vrad = obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire;
+                    z = vi(yi<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(yi<=(obj.rTire)).^2)./ (vrad);
+                    r = sqrt(z.^2+yi(yi<=(obj.rTire)).^2);
+                    t = acos(vi(yi<=(obj.rTire))./(vrad)).* r./(vrad);
+                    tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
+                    wheelAcceleration(i,yi<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
                     
                     hittingAngle = abs(obj.normAngle(wDOA(i)-WheelCenter(i,3))); %hitting angle at Contour Point
                     RCSy = ones(size(yi));
@@ -498,14 +508,22 @@ classdef Car
                     vary = obj.rTire; % ~radius of tire 
                     xi = varx* raylrnd(ones(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1));
                     yi = vary* randn(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
+                    
                     % Sample local velocity in xi-yi-plane
-                    if yi>(obj.rTire)
-                        vi = 0; % static tire case reflection
-                    else
-                        % tire reflection with rotational velocity
-                        %velBins = (-obj.vel:fmcw.dV:0);
-                        vi = -obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* rand(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
-                    end
+                    vi = zeros(size(yi));
+                    vi(yi>(obj.rTire)) = 0; % static tire case reflection
+                    % tire reflection with rotational velocity
+                    %velBins = (-obj.vel:fmcw.dV:0);
+                    vi(yi<=(obj.rTire)) = -obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire.* rand(sum(yi<=(obj.rTire)),1);
+
+                    % Acceleration
+                    vrad = obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire;
+                    z = vi(yi<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(yi<=(obj.rTire)).^2)./ (vrad);
+                    r = sqrt(z.^2+yi(yi<=(obj.rTire)).^2);
+                    t = acos(vi(yi<=(obj.rTire))./(vrad)).* r./(vrad);
+                    tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
+                    wheelAcceleration(i,yi<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
+                    
                     
                     hittingAngle = abs(obj.normAngle(wDOA(i)-180-WheelCenter(i,3))); %hitting angle at back of wheel
                     RCSy = ones(size(yi));
@@ -532,13 +550,20 @@ classdef Car
                     xi = varx+ varx/2* randn(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
                     yi = vary* randn(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
                     % Sample local velocity in xi-yi-plane
-                    if yi>(obj.rTire)
-                        vi = 0; % static tire case reflection
-                    else
-                        % tire reflection with rotational velocity
-                        %velBins = (-obj.vel:fmcw.dV:0);
-                        vi = -obj.vel.* (obj.rTire-abs(yi))./obj.rTire.* rand(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
-                    end
+                    vi = zeros(size(yi));
+                    vi(yi<(obj.rTire)) = 0; % static tire case reflection
+                    % tire reflection with rotational velocity
+                    %velBins = (-obj.vel:fmcw.dV:0);
+                    vi(yi<=(obj.rTire)) = -obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire.* rand(sum(yi<=obj.rTire),1);
+                    
+                    % Acceleration
+                    vrad = obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire;
+                    z = vi(yi<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(yi<=(obj.rTire)).^2)./ (vrad);
+                    r = sqrt(z.^2+yi(yi<=(obj.rTire)).^2);
+                    t = acos(vi(yi<=(obj.rTire))./(vrad)).* r./(vrad);
+                    tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
+                    wheelAcceleration(i,yi<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
+                    
                     
                     hittingAngle = abs(mod(obj.normAngle(wDOA(i)-WheelCenter(i,3)),180)); %hitting angle in front/back of wheel
                     RCSy = ones(size(yi));
@@ -560,8 +585,10 @@ classdef Car
             
              % Filter low RCS points
             wheelScatterer = reshape(wheelScatterer, [], 4); %allign Scatterers in a Column Vector
-            wheelScatterer(wheelScatterer(:,1)==0 & wheelScatterer(:,2) == 0 & wheelScatterer(:,3) == 0,:) = []; %filter empty Scatterers from hidden wheels
-            
+            wheelAcceleration = reshape(wheelAcceleration, [], fmcw.chirpsCycle);
+            empty = wheelScatterer(:,1)==0 & wheelScatterer(:,2) == 0 & wheelScatterer(:,3) == 0;
+            wheelScatterer(empty,:) = []; %filter empty Scatterers from hidden wheels
+            wheelAcceleration(empty,:) = []; 
             
             %--------------------------------------------------------------
             % BODY & UNDERBODY REFLECTIONS
@@ -602,19 +629,35 @@ classdef Car
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
             
             obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)', wheelScatterer(:,1)'; Scatterer(:,2)',wheelScatterer(:,2)'; Elref', WheelElref'], ...
-                    'OrientationAxesOutputPort',true, 'Velocity', [cosd(obj.heading)*Scatterer(:,3)', cosd(obj.heading).*wheelScatterer(:,3)';...
+                    'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*Scatterer(:,3)', cosd(obj.heading).*wheelScatterer(:,3)';...
                     sind(obj.heading)*Scatterer(:,3)', sind(obj.heading).*wheelScatterer(:,3)'; ...
-                    zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))], 'Acceleration', [0;0;0]);
+                    zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
+                    'Acceleration', [zeros(size(Scatterer(:,3)')), cosd(obj.heading).*wheelAcceleration(:,1)';...
+                    zeros(size(Scatterer(:,3)')), sind(obj.heading).*wheelAcceleration(:,1)'; ...
+                    zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
+                    'MotionModel', 'Acceleration', 'AccelerationSource', 'Input port');
             
+            % Parameters for Wheel Point Acceleration (TargetPlatform)
+            obj.Acceleration = wheelAcceleration;
+            obj.N = size(Scatterer(:,1),1)+size(wheelScatterer(:,1),1); %Num of reflector Points in Car Target
         end
         
         
         
         %% Move Target Platform
-        function [post,velt,axt] = move(obj, tsamp, ~)
+        function [post,velt,axt, obj] = move(obj, tsamp, ~)
             % Calculates the current target position and velocity after 
             % moving the platform for a duration tsamp.
-            [post,velt,axt] = obj.TargetPlatform(tsamp);
+            lenContour = obj.N-size(obj.Acceleration(:,1),1);
+            tstep = 1;
+            A = [zeros(1,lenContour), cosd(obj.heading).*obj.Acceleration(:,tstep)';...
+                    zeros(1,lenContour), sind(obj.heading).*obj.Acceleration(:,tstep)'; ...
+                    zeros(1,lenContour), zeros(size(obj.Acceleration(:,tstep)'))];
+            [post,velt,axt] = obj.TargetPlatform(tsamp, A);
+            obj.Acceleration(:,tstep) = [];
+%             scatter(post(1,:),post(2,:))
+%             hold on;
+%             pause(0.01);
         end
         
         
