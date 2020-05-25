@@ -6,15 +6,18 @@ classdef Car
     
     properties
         ID = [];
+        typeNr = [];
         xPos = []; %center y position
         yPos = []; %center x position
         heading = []; %angle of movement relative to x-axis
         vel = []; %velocity along heading angle
         width = []; %vehicle width
         length = []; %vehicle length
+        Height = []; %vehicle height
         heightAxis = []; %Height of wheelbase/axis above ground
-        cornerRadius = [];
-        rTire = [];
+        cornerRadius = []; %curve radius of front to sides 
+        rTire = []; %radius of tire
+        RCS = []; %RCS real measurement data
         
         
         ReceptionAngle = 150; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
@@ -23,13 +26,16 @@ classdef Car
         drefPoints = []; %Number of reflection points
         types = 2; %Number of possible car object types
         
+        %for generateObstructionMap()
+        aziCoverage = [];  %Azimut coverage
+        rCoverage = []; %Range coverage
         
-        RCS = [];
-        InitialHeading = [];
-        TargetPlatform = [];
-        Acceleration = [];
-        N = [];
-        CarTarget = [];
+        
+        InitialHeading = []; %spaceholder
+        Acceleration = []; %Acceleration for all move() steps
+        N = []; %final Number of Scattering points
+        TargetPlatform = []; %target platform
+        CarTarget = []; %target object
     end
     
     methods
@@ -41,9 +47,11 @@ classdef Car
             obj.ID = ['Vehicle', num2str(typeNr)];
             if typeNr == 0
                 %Standard Car Dimensions
-                obj.width = 1.8;
-                obj.length = 4.5;
-                obj.heightAxis = 0.8;
+                obj.typeNr = 0; %type of vehicle
+                obj.width = 1.8; %width of vehicle
+                obj.length = 4.5; %length of vehicle
+                obj.Height = 1.5; %height of vehicle
+                obj.heightAxis = 0.3; %distance from car underbody to ground
                 obj.cornerRadius = 0.8; %radius of contour corners
                 obj.RCS = [10, 7, 6, 5, 4, 4, 3, 2, 5, 20, 5, 0, 0, 0, 1, 3, 5, 10, 15]; %measured RCS in dBsm azi= [0:180]
                 obj.rTire = 0.3; %radius of a tire
@@ -339,6 +347,20 @@ classdef Car
             end
             fullContour = Contour;
             
+            %Find Range and Azimuth Coverage
+            azi = atand(Contour(:,2)./Contour(:,1));
+            obj.aziCoverage = round(min(azi)):round(max(azi));
+            obj.rCoverage = zeros(size(obj.aziCoverage));
+            for a = obj.aziCoverage
+                searchAngle = 1;
+                selectAzi = Contour(azi<a+0.5 & azi>a-0.5,:); %Contour Points with corresponding azi
+                while size(selectAzi,1)==0
+                    searchAngle = searchAngle+1;
+                    selectAzi = Contour(azi<a+0.5*searchAngle & azi>a-0.5*searchAngle,:);
+                end
+                obj.rCoverage(a-obj.aziCoverage(1)+1) = min(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)); %find min Range for corresponding azi
+            end
+            
             figure
             scatter(Contour(:,1),Contour(:,2));
             hold on
@@ -571,6 +593,9 @@ classdef Car
                     hiddenFactor = obj.heightAxis/fmcw.height;
                     % DIFFER BETWEEN BACK/FRONT AND ADD ATT FACTOR FOR
                     % REFLECTIONS UNDER VEHICLE
+                    if hittingAngle > 90
+                        hittingAngle = abs(hittingAngle-180);
+                    end
                     relRCS = 0.5* (1-2*hittingAngle/180).* RCSy.* hiddenFactor;
                     
                     %Trafo back to original Coordinate System

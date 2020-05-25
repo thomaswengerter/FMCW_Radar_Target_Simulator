@@ -28,7 +28,7 @@ classdef FMCWradar
         RXNF = 10;
         RXant = 8;
         
-        printNoiseCharacteristics = true; %Print the SNR and noise level
+        printNoiseCharacteristics = false; %Print the SNR and noise level
         %Noise and Clutter // DO NOT CHANGE
         NoiseFloor = -130; %dB (+/-dynamicNoise +RXNF +dBoffset)
         dynamicNoise = 10; %dB, +/- NoiseFloor

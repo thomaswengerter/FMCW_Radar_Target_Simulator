@@ -12,12 +12,12 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
-plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
-Pedestrians = 0;
-Bicycles = 0;
-Cars = 1;
+Pedestrians = 7;
+Bicycles = 7;
+Cars = 7;
 NoTarget = 0; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
@@ -55,10 +55,10 @@ for target = 1:Pedestrians
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     randposx = fmcw.rangeBins(end)*rand();
     randposy = randposx* (rand()-0.5);
-%     ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
-    ped.InitialPosition = [11.5; -2; 0];
-%     heading = rand()*360-180;
-    heading = 0;
+    ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
+%     ped.InitialPosition = [11.5; -2; 0];
+    heading = rand()*360-180;
+%     heading = 0;
     ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
     
     %Ground Truth
@@ -68,12 +68,12 @@ for target = 1:Pedestrians
     targetV = +ped.WalkingSpeed*cos(ped.InitialHeading/360*2*pi);
     
     %Model Radar Signal for selected Target
-    sb = modelSignal(ped, fmcw);
+    sb = modelSignal(ped, 1, [], fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     pRD = fmcw.RDmap(sbc);
     fmcw.plotRDmap(pRD, [], plotAntennas);
-    plotNoise; 
+    %plotNoise; 
     
     %Label output and save
     label = [targetR, targetV, heading];
@@ -90,7 +90,7 @@ if Bicycles && add_files
     file_offset = length(files); % #files to keep  
 end
 
-for target = 1:Bicycles
+parfor target = 1:Bicycles
     bike = backscatterBicyclist;
     Spokes = [20, 24, 28, 32, 36];
     bike.NumWheelSpokes = Spokes(ceil(rand()*length(Spokes)));
@@ -116,7 +116,7 @@ for target = 1:Bicycles
     targetV = +bike.Speed*cos(bike.InitialHeading/360*2*pi);
             
     %Model Radar Signal for selected Target
-    sb = modelSignal(bike, fmcw);
+    sb = modelSignal(bike, 2, [],fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     bRD = fmcw.RDmap(sbc);
@@ -136,16 +136,17 @@ if Cars && add_files
     files = dir([SimDataPath,'Car/Car*']);
     file_offset = length(files); % #files to keep  
 end
-for target = 1:Cars
+parfor target = 1:Cars
     car = Car;
     car = car.initCar(0);
-    %randxpos = rand()*fmcw.rangeBins(end);
-    %randypos = randxpos*(rand()-0.5);
-    %heading = rand()*360-180;
-    car.xPos = 11; % x dist from radar
-    car.yPos = -2; % y dist from radar
-    car.vel = 10; %m/s
-    car.heading = 10; %degrees, from x-axis
+    randxpos = rand()*fmcw.rangeBins(end);
+    randypos = randxpos*(rand()-0.5);
+    randvel = 2*(rand()-0.5)*fmcw.velBins(end);
+    heading = rand()*360-180;
+    car.xPos = randxpos; % x dist from radar
+    car.yPos = randypos; % y dist from radar
+    car.vel = randvel; %m/s
+    car.heading = heading; %degrees, from x-axis
     
     
     % Calculate label
@@ -153,15 +154,15 @@ for target = 1:Cars
     targetR = sqrt(car.xPos^2+car.yPos^2); %radial distance
     targetV = cosd(relangle)*car.vel; %radial velocity
     
-    cartarget = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
+    car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
     
     
-    sb = modelSignal(cartarget, fmcw);
+    sb = modelSignal(car, 3+car.typeNr, [], fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     cRD = fmcw.RDmap(sbc);
     fmcw.plotRDmap(cRD, [], plotAntennas);
-    plotNoise;
+    %plotNoise;
     
     
     %Label output and save
@@ -200,16 +201,16 @@ if NoTarget && add_files
     files = dir([SimDataPath,'NoTarget/NoTarget*']);
     file_offset = length(files); % #files to keep  
 end
-for target = 1:NoTarget
+parfor target = 1:NoTarget
     %Simulate Noise
-    sb = modelSignal([], fmcw);
+    sb = modelSignal([], [], fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     nRD = fmcw.RDmap(sbc);
     fmcw.plotRDmap(nRD, [], plotAntennas);
     
     %DEBUG: Show Noise char over Range
-    plotNoise;
+    %plotNoise;
     
     %Label output and save
     label = [[],[]];
