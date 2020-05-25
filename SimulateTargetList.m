@@ -41,7 +41,7 @@ for meas = 1:Szenarios
     % Select random number of targets in szenario
 %     Pedestrians = floor(2*rand());
     Pedestrians = 1;
-    Cars = 0;
+    Cars = 1;
     Bicycles = floor(1*rand());
 %     Cars = floor(2*rand());
     
@@ -133,15 +133,18 @@ for meas = 1:Szenarios
         targetV = cosd(relangle)*car.vel; %radial velocity
         azi = atand(car.yPos/car.xPos);
 
-        cartarget = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
+        car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
 
         %Label output and save
         label = [targetR, targetV, azi, car.heading];
-        name = ['Bicycle', num2str(target)];
+        name = ['Vehicle', num2str(car.typeNr)];
         eval(['Labels.', name, '= label;']);
         eval(['Targets.',name, '= car;']);
     end
     
+    
+    %% Generate obstruction map for each chirp/time step
+    map = generateObstructionMap(Targets, fmcw);
     
     
     %% Simulate Baseband Signals
@@ -150,8 +153,15 @@ for meas = 1:Szenarios
     names = fieldnames(Targets);
     for i= 1:numel(fieldnames(Targets))
         eval(['target = Targets.', names{i}, ';']);
+        if strcmp(names{i}(1:3), 'Ped')
+            targetID = 1;
+        elseif strcmp(names{i}(1:4),'Bicy')
+            targetID = 2;
+        elseif strcmp(names{i}(1:4), 'Vehi')
+            targetID = 3+target.typeNr;
+        end
         %Model Radar Signal for selected Target
-        sb =  sb+ modelSignal(target, fmcw);
+        sb =  sb+ modelSignal(target, targetID, map, fmcw);
     end
     
     % Add Noise and static Clutter to baseband signal

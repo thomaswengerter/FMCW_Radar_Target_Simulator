@@ -1,29 +1,32 @@
-function [sb] = modelSignal(target, Targets, fmcw)
+function [sb] = modelSignal(target, targetID, map, fmcw)
 %% modelSignal() Summary
 %   This function takes the configured radar 'target' object (from phased
 %   toolbox) as input and generates the radar response for the radar
 %   settings specified in FMCWradar Object 'radar'
+%
+%   INPUTS
+%   target:     target object
+%   targetID:   1 Pedestrian, 2 Bicycle, >=3 Vehicle
+%   map:        Obstruction map for covered target points
+%   fmcw:       fmcw radar object
+
+%   OUTPUT
+%   sb:         baseband RX signal
+
 
 %% Start Radar Measurement
 % Collect sampled reflections within the current chirpInterval for L consecutive chirps
 % Sampling frequency for propagation is Propagation_fs = sweepBw to avoid
 % undersampling
+
+%xRX = [fmcw.K, fmcw.L, fmcw.RXant]
 xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.Propagation_fs),fmcw.L, fmcw.RXant));
+
 
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
     xTX = fmcw.MStrx(fmcw.chirps()); % Radar transmitter signal
     
-    CarTarget = 0;
-    try
-        % TODO: Find better Criteria
-        CarTarget = strcmp(target.ID(1:end-1), 'Vehicle');
-        if CarTarget == 0
-            error('Could not identify Car ID %s!', target.ID)
-        end
-    catch
-        %No car
-    end
     
     %Target Backscatter
     if ~isempty(target)
@@ -31,10 +34,34 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             % Looping through chirps
             [posr,velr,axr] = fmcw.MSradarplt(tsamp); % current Position of Radar
             %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
-            if CarTarget
-                [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % start Moving target
+            if targetID >= 3
+                [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
             else
-                [post,velt,axt] = move(target,tsamp,target.InitialHeading); % start Moving target
+                [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move ped / bike
+            end
+            
+            if ~isempty(map)
+                %Check visibility on map
+                ridx = ceil(sqrt(post(1,:).^2+post(2,:).^2)./fmcw.dR);
+                azi = round(atand(post(2,:)./post(1,:)));
+                if targetID == 1 || targetID >= 3
+                    targetheight = target.Height; %height of pedestrian/car
+                else 
+                    targetheight = max(post(3,:)); %height of bicycle
+                end
+                CoveredFilter = zeros(size(azi));
+                for i = 1:size(azi)
+                    % map = [tstep, azimuth (-90,+90), Range, (max height obstructed, target ID)]
+                    if map(chirp, azi(i)+90, ridx(i), 2)~= targetID && map(chirp, azi(i)+90, ridx(i), 1)>targetheight
+                        CoveredFilter(i) = 1;
+                    end
+                end
+                % Filter covered Scatterers
+                if sum(CoveredFilter)>0
+                    post(CoveredFilter) = [];
+                    velt(CoveredFilter) = [];
+                    axt(CoveredFilter) = [];
+                end
             end
             
             [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
@@ -53,10 +80,8 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 end
             end
             
-            
-                  
             % TODO: Check why mangle required for other targets????
-            if CarTarget
+            if targetID >= 3
                 angle(angle>180) = angle(angle>180)-360;
                 xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, angle, fmcw.f0, fmcw.c0)); 
             else
