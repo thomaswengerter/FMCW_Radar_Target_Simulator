@@ -12,12 +12,12 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
-plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
-Pedestrians = 7;
-Bicycles = 7;
-Cars = 7;
+Pedestrians = 1;
+Bicycles = 0;
+Cars = 0;
 NoTarget = 0; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
@@ -47,7 +47,7 @@ if Pedestrians && add_files
     file_offset = length(files); % #files to keep  
 end
 
-for target = 1:Pedestrians
+parfor target = 1:Pedestrians
     ped = backscatterPedestrian;
     ped.Height = 1+rand(); % [1m,2m]
     ped.WalkingSpeed = 1.4*ped.Height; % rand()* 
@@ -56,9 +56,9 @@ for target = 1:Pedestrians
     randposx = fmcw.rangeBins(end)*rand();
     randposy = randposx* (rand()-0.5);
     ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
-%     ped.InitialPosition = [11.5; -2; 0];
+    ped.InitialPosition = [10; 0; 0];
     heading = rand()*360-180;
-%     heading = 0;
+    heading = 0;
     ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
     
     %Ground Truth
@@ -114,6 +114,7 @@ parfor target = 1:Bicycles
     %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
     targetR = sqrt(bike.InitialPosition(1)^2+bike.InitialPosition(2)^2);
     targetV = +bike.Speed*cos(bike.InitialHeading/360*2*pi);
+    azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
             
     %Model Radar Signal for selected Target
     sb = modelSignal(bike, 2, [],fmcw);
@@ -122,9 +123,9 @@ parfor target = 1:Bicycles
     bRD = fmcw.RDmap(sbc);
     fmcw.plotRDmap(bRD, [], plotAntennas);
     %plotNoise;
-    
+
     %Label output and save
-    label = [targetR, targetV, heading];
+    label = [targetR, targetV, azi, heading];
     saveMat(bRD, label, 'Bicycle', target+file_offset, SimDataPath)
 end
 
@@ -153,6 +154,7 @@ parfor target = 1:Cars
     relangle = atand(car.yPos/car.xPos)-car.heading; %angle between heading and radial velocity
     targetR = sqrt(car.xPos^2+car.yPos^2); %radial distance
     targetV = cosd(relangle)*car.vel; %radial velocity
+    azi = atand(car.yPos/car.xPos);
     
     car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
     
@@ -164,9 +166,9 @@ parfor target = 1:Cars
     fmcw.plotRDmap(cRD, [], plotAntennas);
     %plotNoise;
     
-    
+
     %Label output and save
-    label = [targetR, targetV, car.heading];
+    label = [targetR, targetV, azi, heading];
     saveMat(cRD, label, 'Car', target+file_offset, SimDataPath)
 end
 
