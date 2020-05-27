@@ -34,7 +34,7 @@ classdef FMCWradar
         dynamicNoise = 10; %dB, +/- NoiseFloor
         backscatterStatClutter = false;
         numStatTargets = 20; % Rayleigh Mean for the number of static clutter targets
-        dBoffset = -60; % offset for RD map plot
+        dBoffset = 0; % offset for RD map plot
         
         %Initialized in function:   init_RDmap(obj)
         chirpInterval = [];
@@ -308,36 +308,45 @@ classdef FMCWradar
             sz = size(s_beat);
             RDmap = zeros(sz(1)/2,sz(2), sz(3));
             
-            for ant = 1:obj.RXant
-                %Select one RX antenna
-                sb = s_beat(:,:,ant);
+%             for ant = 1:obj.RXant
+%                 %Select one RX antenna
+%                 sb = s_beat(:,:,ant);
+% 
+%                 if size(sb,1) ~= obj.K
+%                     error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp K doesnt match the beat signal rows...\n\n', size(sb,1), size(sb,2), obj.K, obj.L)
+%                 elseif size(sb,2) ~= obj.L
+%                     error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp sequence L doesnt match the beat signal columns...\n\n', size(sb,1), size(sb,2), obj.K, obj.L)
+%                 end
 
-                if size(sb,1) ~= obj.K
-                    error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp K doesnt match the beat signal rows...\n\n', size(sb,1), size(sb,2), obj.K, obj.L)
-                elseif size(sb,2) ~= obj.L
-                    error('\nBeat signal has wrong size: [%d,%d], expected K,L: [%d,%d]!!\nExpected length of chirp sequence L doesnt match the beat signal columns...\n\n', size(sb,1), size(sb,2), obj.K, obj.L)
-                end
+            % 1st FFT for RANGE
+            SB = fft(s_beat,[], 1)/obj.K; %/length(s_beat(:,1)) FFT 1 of every column with K time samples
+            SB = fftshift(SB,1);
+            
+            %Visualization Corrections
+            SB = SB(obj.K/2+1:end,:,:); % dont show negative Range 
 
-                % 1st FFT for RANGE
-                SB = fft(sb,[], 1); %/length(s_beat(:,1)) FFT 1 of every column with K time samples
-                SB = fftshift(SB,1);
 
-                % 2nd FFT for DOPPLER
-                SB = fft(SB, [], 2); % /256  FFT 2 of every row with L chirps
-                SB = fftshift(SB,2);
+            % 2nd FFT for DOPPLER
+            SB = fft(SB, [], 2) /obj.L; % /256  FFT 2 of every row with L chirps
+            SB = fftshift(SB,2);
 
-                %Visualization Corrections
-                SB = SB(length(sb(:,1))/2+1:end,:); % dont show negative Range 
+            % OPTIONAL: RDmap preprocessing
+            %Set max(RD) to 0
+%             RDmap = RDmap - max(RDmap);
+            %Set minimum to -150dB
+%             RDmap(RDmap < -200) = -200;
+            
+            % 3rd FFT for Angle
+            winN        = zeros(1,1,obj.RXant);
+            winN(:)     = hann(obj.RXant);
+            winN        = repmat(winN, [obj.K/2, obj.L, 1]);
+            SB = cat(3, zeros(obj.K/2, obj.L, size(SB,3)/2), SB .* winN, zeros(obj.K/2, obj.L, size(SB,3)/2));
+            SB = fft(ifftshift(SB,3), [], 3)/sum(winN(1,1,:));
+            SB = fftshift(SB,3);
 
-                RDmap(:,:,ant) = 10 * log10(abs(SB).^2); % RD map in logarithmic scale
+            
+            RDmap = 10 * log10(abs(SB).^2); % RD map in logarithmic scale
 
-                % OPTIONAL: RDmap preprocessing
-                %Set max(RD) to 0
-    %             RDmap = RDmap - max(RDmap);
-                %Set minimum to -150dB
-    %             RDmap(RDmap < -200) = -200;
-                
-            end
         end
         
         
