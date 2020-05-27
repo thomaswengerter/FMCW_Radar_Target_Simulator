@@ -53,7 +53,9 @@ classdef Car
                 obj.Height = 1.5; %height of vehicle
                 obj.heightAxis = 0.3; %distance from car underbody to ground
                 obj.cornerRadius = 0.8; %radius of contour corners
-                obj.RCS = [10, 7, 6, 5, 4, 4, 3, 2, 5, 20, 5, 0, 0, 0, 1, 3, 5, 10, 15]; %measured RCS in dBsm azi= [0:180]
+                %obj.RCS = [10, 7, 6, 5, 4, 4, 3, 2, 5, 20, 5, 0, 0, 0, 1, 3, 5, 10, 15]; %measured RCS in dBsm azi= [0:180]
+                obj.RCS = mean([-1, 4,-3,-8,-12,-2, -5,-2,-6,-4,+7,+5, -2,-5,-4,-11,-9,+3, -3; ...
+                           fliplr([-3,-7,-12,-8,-6,-4, -12,-5,-7,+1,-1,+5, -9,-10,-5,-2,-5,0, -2])], 1); % [Abadpour] 
                 obj.rTire = 0.3; %radius of a tire
             elseif typeNr == 1
                 %TODO: add random cars, SUVs, trucks, ...
