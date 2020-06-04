@@ -69,7 +69,7 @@ parfor target = 1:Pedestrians
     azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
     
     %Model Radar Signal for selected Target
-    sb = modelSignal(ped, 1, [], fmcw);
+    [sb,~] = modelSignal(ped, 1, [], fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     pRD = fmcw.RDmap(sbc);
@@ -118,7 +118,7 @@ parfor target = 1:Bicycles
     azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
             
     %Model Radar Signal for selected Target
-    sb = modelSignal(bike, 2, [],fmcw);
+    [sb,~] = modelSignal(bike, 2, [],fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     bRD = fmcw.RDmap(sbc);
@@ -165,7 +165,7 @@ parfor target = 1:Cars
     car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
     
     
-    sb = modelSignal(car, 3+car.typeNr, [], fmcw);
+    [sb,~] = modelSignal(car, 3+car.typeNr, [], fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     cRD = fmcw.RDmap(sbc);
@@ -211,7 +211,7 @@ if NoTarget && add_files
 end
 parfor target = 1:NoTarget
     %Simulate Noise
-    sb = modelSignal([], [], fmcw);
+    [sb,~] = modelSignal([], [], fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     nRD = fmcw.RDmap(sbc);

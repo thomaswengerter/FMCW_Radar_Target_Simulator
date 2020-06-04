@@ -70,7 +70,7 @@ for meas = 1:Szenarios
         azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
 
         %Label output and save
-        label = [targetR, targetV, azi, heading];
+        label = [targetR, targetV, azi, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading];
         name = ['Pedestrian', num2str(target)];
         eval(['Labels.', name, '= label;']);
         eval(['Targets.',name, '= ped;']);
@@ -106,7 +106,7 @@ for meas = 1:Szenarios
         azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
 
         %Label output and save
-        label = [targetR, targetV, azi, heading];
+        label = [targetR, targetV, azi, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
         name = ['Bicycle', num2str(target)];
         eval(['Labels.', name, '= label;']);
         eval(['Targets.',name, '= bike;']);
@@ -136,7 +136,7 @@ for meas = 1:Szenarios
         car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
 
         %Label output and save
-        label = [targetR, targetV, azi, car.heading];
+        label =  [targetR, targetV, azi, car.xPos, car.yPos, car.width, car.length, heading, 0];
         name = ['Vehicle', num2str(car.typeNr)];
         eval(['Labels.', name, '= label;']);
         eval(['Targets.',name, '= car;']);
@@ -161,7 +161,9 @@ for meas = 1:Szenarios
             targetID = 3+target.typeNr;
         end
         %Model Radar Signal for selected Target
-        sb =  sb+ modelSignal(target, targetID, map, fmcw);
+        [sbTarget, obstruction] = modelSignal(target, targetID, map, fmcw);
+        eval(['Label.', names{i}, '(end) = obstruction;']); %set obstruction factor in Label
+        sb =  sb + sbTarget;
     end
     
     % Add Noise and static Clutter to baseband signal

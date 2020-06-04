@@ -1,4 +1,4 @@
-function [sb] = modelSignal(target, targetID, map, fmcw)
+function [sb,obstruction] = modelSignal(target, targetID, map, fmcw)
 %% modelSignal() Summary
 %   This function takes the configured radar 'target' object (from phased
 %   toolbox) as input and generates the radar response for the radar
@@ -19,8 +19,12 @@ function [sb] = modelSignal(target, targetID, map, fmcw)
 % Sampling frequency for propagation is Propagation_fs = sweepBw to avoid
 % undersampling
 
+
 %xRX = [fmcw.K, fmcw.L, fmcw.RXant]
 xRX = complex(zeros(round(fmcw.chirpInterval*fmcw.Propagation_fs),fmcw.L, fmcw.RXant));
+
+%obstruction factor if target points are covered
+obstruction = 0;
 
 
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
@@ -58,6 +62,12 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 end
                 % Filter covered Scatterers
                 if sum(CoveredFilter)>0
+                    obstruction = 1; % some Target points are obstructed
+                    if sum(CoveredFilter)>(3*length(post)/4)
+                        obstruction = 3; % more than 3/4 of the target points are obstructed
+                    elseif sum(CoveredFilter)>(length(post)/2)
+                        obstruction = 2; % more than 1/2 of the target points are obstructed
+                    end
                     post(CoveredFilter) = [];
                     velt(CoveredFilter) = [];
                     axt(CoveredFilter) = [];
