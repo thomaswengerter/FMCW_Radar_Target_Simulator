@@ -28,12 +28,12 @@ classdef FMCWradar
         RXNF = 10;
         RXant = 8;
         
-        printNoiseCharacteristics = false; %Print the SNR and noise level
+        printNoiseCharacteristics = true; %Print the SNR and noise level
         %Noise and Clutter // DO NOT CHANGE
         NoiseFloor = -130; %dB (+/-dynamicNoise +RXNF +dBoffset)
         dynamicNoise = 10; %dB, +/- NoiseFloor
         backscatterStatClutter = false;
-        numStatTargets = 20; % Rayleigh Mean for the number of static clutter targets
+        numStatTargets = 30; % Rayleigh Mean for the number of static clutter targets
         dBoffset = 0; % offset for RD map plot
         
         %Initialized in function:   init_RDmap(obj)
@@ -184,12 +184,12 @@ classdef FMCWradar
             % obj.SNR is determining the amplitude of additional noise
             % obj.printNoiseCharacteristics = true; %DEBUG: print SNR and Noise Lv
             
-%             %Adjust Noise Floor to match FFT outputs
-%             FFToffset = -60; %dB
+            %Adjust Noise Floor to match FFT outputs in measurements
+            FFToffset = 10; %dB
             
             %Apply offset and add random dynamics to Noise Floor
             dynOffset = ((rand()-0.5)*2)*obj.dynamicNoise;
-            FFTnoiseFloor = obj.NoiseFloor + dynOffset; %+FFToffset
+            FFTnoiseFloor = obj.NoiseFloor + dynOffset + FFToffset; %
             
             %Calculate the noise power from the noise floor
             Pn = 10^(FFTnoiseFloor/10);
@@ -227,7 +227,7 @@ classdef FMCWradar
             % Add Noise and range dep. Clutter to signal
             if obj.printNoiseCharacteristics
                 SNR = Ps/Pn;
-                fprintf('Generated gaussian Noise Floor at %.2f dB with Range dependency factor %.2f.\nSNR is %.5f (%.2f dB).\n', obj.NoiseFloor+dynOffset, RnoiseFaktor, SNR, 10*log10(SNR));
+                fprintf('Generated gaussian Noise Floor at %.2f dB with Range dependency factor %.2f.\nSNR is %.5f (%.2f dB).\n', obj.NoiseFloor+dynOffset+FFToffset, RnoiseFaktor, SNR, 10*log10(SNR));
             end
             s_beatnoisy = s_beat+ (noise+noiseR*RnoiseFaktor);
         end
@@ -252,9 +252,9 @@ classdef FMCWradar
             Ridx(Ridx>length(obj.rangeBins)) = ceil(rand()*length(obj.rangeBins));
             ranges = obj.rangeBins(Ridx);
             
-            % Rayleigh amplitudes with margin 10 dB
+            % Rayleigh amplitudes with margin [NoiseFloor, NoiseFloor+20dB]
             AmpMargin = 15; %dB variance of Amplitude
-            rAmp = obj.NoiseFloor - AmpMargin * raylrnd(ones(1,statTarg))+10;
+            rAmp = obj.NoiseFloor - AmpMargin * raylrnd(ones(1,statTarg))+25;
             rangeAtt = 2*AmpMargin * (ranges/obj.rangeBins(end)); % Decay of clutter Power with Range ~R^2
             rAmp = sqrt(10.^((rAmp-rangeAtt)/10)); %Amp = sqrt(Pn), dB->scalar
             
@@ -319,14 +319,23 @@ classdef FMCWradar
 %                 end
 
             % 1st FFT for RANGE
+%             winK = repmat(hann(obj.K), [1,obj.L,obj.RXant]);
+%             scaWinK     = sum(winK(:, 1, 1));
+%             s_beat = cat(1,zeros(obj.K/2, obj.L, obj.RXant), s_beat .* winK, zeros(obj.K/2, obj.L, obj.RXant));
+%             SB = fft(ifftshift(s_beat,1) , obj.K, 1) /scaWinK; % *2/2048
             SB = fft(s_beat,[], 1)/obj.K; %/length(s_beat(:,1)) FFT 1 of every column with K time samples
             SB = fftshift(SB,1);
             
             %Visualization Corrections
+%            SB = SB(1:obj.K/2,:,:);
             SB = SB(obj.K/2+1:end,:,:); % dont show negative Range 
 
 
             % 2nd FFT for DOPPLER
+%             winL = repmat(hann(obj.L)', [obj.K/2, 1, obj.RXant]);
+%             scaWinL     = sum(winL(1,:,1));
+%             SB = cat(2, zeros(obj.K/2, obj.L/2, obj.RXant), SB .* winL, zeros(obj.K/2, obj.L/2, obj.RXant));
+%             SB = fft(ifftshift(SB,2), obj.L, 2)/scaWinL;
             SB = fft(SB, [], 2) /obj.L; % /256  FFT 2 of every row with L chirps
             SB = fftshift(SB,2);
 
@@ -340,8 +349,8 @@ classdef FMCWradar
             winN        = zeros(1,1,obj.RXant);
             winN(:)     = hann(obj.RXant);
             winN        = repmat(winN, [obj.K/2, obj.L, 1]);
-            SB = cat(3, zeros(obj.K/2, obj.L, size(SB,3)/2), SB .* winN, zeros(obj.K/2, obj.L, size(SB,3)/2));
-            SB = fft(ifftshift(SB,3), [], 3)/sum(winN(1,1,:));
+            SB = cat(3, zeros(obj.K/2, obj.L, obj.RXant/2), SB .* winN, zeros(obj.K/2, obj.L, obj.RXant/2));
+            SB = fft(ifftshift(SB,3), obj.RXant*2, 3)/sum(winN(1,1,:));
             SB = fftshift(SB,3);
 
             
