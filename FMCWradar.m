@@ -20,6 +20,7 @@ classdef FMCWradar
         f0 = 76.5e9; %Radar frequency
         chirpsCycle = 256; %Number of chirps per measurement cycle (Doppler)
         height = 0.5; %position above street in m
+        egoMotion = []; %velocity of the carrying car
         
         %Antennas & Propagation
         TXpeakPower = 0.01; %10dBm in W
@@ -90,10 +91,10 @@ classdef FMCWradar
             obj.velBins = (-obj.L/2:obj.L/2-1) *obj.dV;
             %RmaxChirp = (chirpInterval-chirpTime)*c0/2; %max unabiguous Range limited by receiving interval
             obj.Rmaxsamp = obj.fs/4*obj.c0*obj.chirpTime/obj.sweepBw; %max Range limited by sampling freq
+            obj.egoMotion = obj.velBins(end)* rand(); %random motion of the carrying car
         end
         
-        
-        
+             
         %% Specify chirp sequence
         function obj = generateChirpSequence(obj)
             % output: add object feature obj.chirps which contains the
@@ -168,7 +169,7 @@ classdef FMCWradar
                 'TwoWayPropagation',true,'SampleRate',obj.Propagation_fs);
             % Radar Position and Motion
             obj.MSradarplt = phased.Platform('InitialPosition',[0;0;obj.height], ...
-                'OrientationAxesOutputPort',true, 'InitialVelocity', [0;0;0], 'Acceleration', [0;0;0]);
+                'OrientationAxesOutputPort',true, 'InitialVelocity', [obj.egoMotion;0;0], 'Acceleration', [0;0;0]);
             % Radar Transmitter
             obj.MStrx = phased.Transmitter('PeakPower',obj.TXpeakPower,'Gain',obj.TXgain);
             % Radar Receiver
@@ -272,7 +273,7 @@ classdef FMCWradar
                 for R = -obj.dR:obj.dR:+obj.dR
                     for v = -obj.dV:obj.dV:obj.dV
                         fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *(ranges(target)+R);
-                        fd = -obj.f0 * 2/obj.c0 * v;
+                        fd = -obj.f0 * 2/obj.c0 * (obj.egoMotion+v);
                         phase = obj.f0*2/obj.c0*(ranges(target)+R);
                         % add signals for Frequency shifts (Range, Doppler and Phase shift)
                         rangeMat   = exp(1j*2*pi * fR/obj.fs * rangeIdxMat); % t = over K Sample values(time) add f_R, to each Chirp (L lines)
@@ -366,7 +367,7 @@ classdef FMCWradar
             for ant = plotAntennas
                 RDmap_plt = RDmap(:,:,ant);
                 figure;
-                x = obj.velBins;
+                x = obj.velBins+obj.egoMotion; % Speed with egoMotion
                 y = obj.rangeBins(1:length(obj.rangeBins/2));
     %             y = [fliplr(y),y];
                 if ~isempty(target) %show current target position

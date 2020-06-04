@@ -12,7 +12,7 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
-plotAntennas = [1:2:16]; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = [1:3:16]; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
 Pedestrians = 0;
@@ -77,7 +77,7 @@ parfor target = 1:Pedestrians
     %plotNoise; 
     
     %Label output and save
-    label = [targetR, targetV, azi, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading];
+    label = [targetR, targetV, azi, fmcw.egoMotion, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading];
     saveMat(pRD, label, 'Pedestrian', target+file_offset, SimDataPath)
 end
 
@@ -126,7 +126,7 @@ parfor target = 1:Bicycles
     %plotNoise;
 
     %Label output and save
-    label = [targetR, targetV, azi, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
+    label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
     saveMat(bRD, label, 'Bicycle', target+file_offset, SimDataPath)
 end
 
@@ -174,7 +174,7 @@ parfor target = 1:Cars
     
 
     %Label output and save
-    label = [targetR, targetV, azi, car.xPos, car.yPos, car.width, car.length, heading, 0];
+    label = [targetR, targetV, azi, fmcw.egoMotion, car.xPos, car.yPos, car.width, car.length, heading, 0];
     saveMat(cRD, label, 'Car', target+file_offset, SimDataPath)
 end
 
@@ -221,7 +221,7 @@ parfor target = 1:NoTarget
     %plotNoise;
     
     %Label output and save
-    label = [[],[],[],[],[],[],[],[],[]];
+    label = [[],[],[],[],[],[],[],[],[],[]];
     saveMat(nRD, label, 'NoTarget', target+file_offset, SimDataPath)
 end
 

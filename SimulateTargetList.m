@@ -2,13 +2,19 @@
 % Function to start simulation for a list of targets generated from a time
 % sequence in a specific scenario.
 % 
+% All targets are initialized randomly and collected in one struct Target.
+% Also the labels are stored in struct Label.
+% When all targets are positioned, the obstruction map is generated.
+% Finally, signals are generated in modelSignal for each target considering
+% the obstruction map.
+% 
 % -------------------------------------------------------------------------
 
 clear
 %% Target Simulation
 global c_0;
 c_0 = 299792458;
-plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = [0]; %list indices of RX antenna elements to be plotted in RD map
 Szenarios = 1; % SET NUMBER OF SZENARIOS
 
 %Generate Radar Object
@@ -43,7 +49,7 @@ for meas = 1:Szenarios
     Pedestrians = 1;
     Cars = 1;
     Bicycles = floor(1*rand());
-%     Cars = floor(2*rand());
+%     Cars = floor(3*rand());
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
     Labels = struct; %Collect all Labels in struct
@@ -70,7 +76,7 @@ for meas = 1:Szenarios
         azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
 
         %Label output and save
-        label = [targetR, targetV, azi, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading];
+        label = [targetR, targetV, azi, fmcw.egoMotion, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading];
         name = ['Pedestrian', num2str(target)];
         eval(['Labels.', name, '= label;']);
         eval(['Targets.',name, '= ped;']);
@@ -106,7 +112,7 @@ for meas = 1:Szenarios
         azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
 
         %Label output and save
-        label = [targetR, targetV, azi, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
+        label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
         name = ['Bicycle', num2str(target)];
         eval(['Labels.', name, '= label;']);
         eval(['Targets.',name, '= bike;']);
@@ -136,7 +142,7 @@ for meas = 1:Szenarios
         car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
 
         %Label output and save
-        label =  [targetR, targetV, azi, car.xPos, car.yPos, car.width, car.length, heading, 0];
+        label =  [targetR, targetV, azi, fmcw.egoMotion, car.xPos, car.yPos, car.width, car.length, heading, 0];
         name = ['Vehicle', num2str(car.typeNr)];
         eval(['Labels.', name, '= label;']);
         eval(['Targets.',name, '= car;']);
@@ -163,6 +169,9 @@ for meas = 1:Szenarios
         %Model Radar Signal for selected Target
         [sbTarget, obstruction] = modelSignal(target, targetID, map, fmcw);
         eval(['Label.', names{i}, '(end) = obstruction;']); %set obstruction factor in Label
+        if obstruction == 4
+            Label = rmfield(Label, names{i}); % remove fully hidden target from label
+        end
         sb =  sb + sbTarget;
     end
     
