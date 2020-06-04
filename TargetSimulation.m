@@ -12,12 +12,12 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
-plotAntennas = [1]; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = [1:2:16]; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
-Pedestrians = 1;
+Pedestrians = 0;
 Bicycles = 0;
-Cars = 0;
+Cars = 1;
 NoTarget = 0; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
@@ -53,12 +53,12 @@ parfor target = 1:Pedestrians
     ped.WalkingSpeed = 1.4*ped.Height; % rand()* 
     ped.OperatingFrequency = fmcw.f0;
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
-    randposx = fmcw.rangeBins(end)*rand();
+    randposx = fmcw.rangeBins(end-30)*rand();
     randposy = randposx* (rand()-0.5);
     ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
-    ped.InitialPosition = [10; 0; 0];
+    %ped.InitialPosition = [12; -2; 0];
     heading = rand()*360-180;
-    heading = 0;
+    %heading = 10;
     ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
     
     %Ground Truth
@@ -66,6 +66,7 @@ parfor target = 1:Pedestrians
     %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
     targetR = sqrt(ped.InitialPosition(1)^2+ped.InitialPosition(2)^2);
     targetV = +ped.WalkingSpeed*cos(ped.InitialHeading/360*2*pi);
+    azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
     
     %Model Radar Signal for selected Target
     sb = modelSignal(ped, 1, [], fmcw);
@@ -76,7 +77,7 @@ parfor target = 1:Pedestrians
     %plotNoise; 
     
     %Label output and save
-    label = [targetR, targetV, heading];
+    label = [targetR, targetV, azi, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading];
     saveMat(pRD, label, 'Pedestrian', target+file_offset, SimDataPath)
 end
 
@@ -114,7 +115,7 @@ parfor target = 1:Bicycles
     %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
     targetR = sqrt(bike.InitialPosition(1)^2+bike.InitialPosition(2)^2);
     targetV = +bike.Speed*cos(bike.InitialHeading/360*2*pi);
-    azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
+    azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
             
     %Model Radar Signal for selected Target
     sb = modelSignal(bike, 2, [],fmcw);
@@ -125,7 +126,7 @@ parfor target = 1:Bicycles
     %plotNoise;
 
     %Label output and save
-    label = [targetR, targetV, azi, heading];
+    label = [targetR, targetV, azi, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
     saveMat(bRD, label, 'Bicycle', target+file_offset, SimDataPath)
 end
 
@@ -142,11 +143,16 @@ parfor target = 1:Cars
     car = car.initCar(0);
     randxpos = rand()*fmcw.rangeBins(end);
     randypos = randxpos*(rand()-0.5);
-    randvel = 2*(rand()-0.5)*fmcw.velBins(end);
+    randvel = fmcw.velBins(end)- raylrnd(1)*fmcw.velBins(end)/3; %fmcw.velBins(end)*(rand()-0.5)*2;
     heading = rand()*360-180;
+    %heading = randn()* 20;
+    %heading = 10;
     car.xPos = randxpos; % x dist from radar
+    %car.xPos = 13;
     car.yPos = randypos; % y dist from radar
+    %car.yPos = -2;
     car.vel = randvel; %m/s
+    %car.vel = 10;
     car.heading = heading; %degrees, from x-axis
     
     
@@ -168,7 +174,7 @@ parfor target = 1:Cars
     
 
     %Label output and save
-    label = [targetR, targetV, azi, heading];
+    label = [targetR, targetV, azi, car.xPos, car.yPos, car.width, car.length, heading, 0];
     saveMat(cRD, label, 'Car', target+file_offset, SimDataPath)
 end
 
@@ -215,7 +221,7 @@ parfor target = 1:NoTarget
     %plotNoise;
     
     %Label output and save
-    label = [[],[]];
+    label = [[],[],[],[],[],[],[],[],[]];
     saveMat(nRD, label, 'NoTarget', target+file_offset, SimDataPath)
 end
 
