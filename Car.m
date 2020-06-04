@@ -5,6 +5,8 @@ classdef Car
     %   Doppler), angular positions of target.
     
     properties
+        plotContour = false; %bool: set to true to see scattering points
+        
         ID = [];
         typeNr = [];
         xPos = []; %center y position
@@ -372,11 +374,11 @@ classdef Car
                 end
                 obj.rCoverage(a-obj.aziCoverage(1)+1) = min(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)); %find min Range for corresponding azi
             end
-            
-            figure
-            scatter(Contour(:,1),Contour(:,2));
-            hold on
-            
+            if obj.plotContour
+                figure
+                scatter(Contour(:,1),Contour(:,2));
+                hold on
+            end
             
             
             %--------------------------------------------------------------
@@ -392,9 +394,10 @@ classdef Car
             Contour(filter,:) = [];
             DOA(filter) = [];
             
-            scatter(Contour(:,1),Contour(:,2),[], 'r')
-            hold on;
-            
+            if obj.plotContour
+                scatter(Contour(:,1),Contour(:,2),[], 'r')
+                hold on;
+            end
             
             
             
@@ -443,9 +446,10 @@ classdef Car
                 Scatterer((i-1)*ReflectionsPerPoint+1:i*ReflectionsPerPoint,:) = [Contour(i,1)+x, Contour(i,2)+y, obj.vel*ones(size(x)), relRCS*ones(size(x))];
             end
             
-            scatter(Scatterer(:,1),Scatterer(:,2),[], 'g.')
-            hold on
-            
+            if obj.plotContour
+                scatter(Scatterer(:,1),Scatterer(:,2),[], 'g.')
+                hold on
+            end
             
             
             %--------------------------------------------------------------
@@ -530,9 +534,11 @@ classdef Car
                     
                     wheelScatterer(i,:,:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y, obj.vel+vi, relRCS];
                     
-                    scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'y.')
-                    hold on
-                    
+                    if obj.plotContour
+                        scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'y.')
+                        hold on
+                    end
+                        
                 elseif hidden(i) == 1
                     % Side view, hidden Wheels: Only lower part visible with
                     %relative Speed [-vel,0]
@@ -571,8 +577,10 @@ classdef Car
                     
                     wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y,  obj.vel+vi, relRCS];
                     
-                    scatter(wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1),wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),2), [], 'm.')
-                    hold on
+                    if obj.plotContour
+                        scatter(wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1),wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),2), [], 'm.')
+                        hold on
+                    end
                     
                 elseif hidden(i) == 2
                     % Front/Back view of tire
@@ -615,8 +623,10 @@ classdef Car
                     
                     wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y, obj.vel+vi, relRCS];
                     
-                    scatter(wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1),wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),2), [], 'mx')
-                    hold on
+                    if obj.plotContour
+                        scatter(wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1),wheelScatterer(i,1:floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),2), [], 'mx')
+                        hold on
+                    end
                 end
             end
             
