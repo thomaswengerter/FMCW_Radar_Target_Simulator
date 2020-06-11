@@ -6,8 +6,9 @@ function saveMat(RD, label, targetType, targetNo, SimDataPath)
 savePics = false;
 
 folder = [SimDataPath, targetType, '/'];
-save([folder, targetType, num2str(targetNo)],'RD');
-save([folder, targetType(1), 'label', num2str(targetNo)],'label');
+
+save([folder, targetType,'_', num2str(targetNo)],'RD');
+save([folder, targetType, '_Label_', num2str(targetNo)],'label');
 
 
 %% YOLO pics

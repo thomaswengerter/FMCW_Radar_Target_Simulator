@@ -12,7 +12,7 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
-plotAntennas = [1:3:16]; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
 Pedestrians = 0;
@@ -50,7 +50,7 @@ end
 parfor target = 1:Pedestrians
     ped = backscatterPedestrian;
     ped.Height = 1+rand(); % [1m,2m]
-    ped.WalkingSpeed = 1.4*ped.Height; % rand()* 
+    ped.WalkingSpeed = rand()* 1.4*ped.Height; % 
     ped.OperatingFrequency = fmcw.f0;
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     randposx = fmcw.rangeBins(end-30)*rand();

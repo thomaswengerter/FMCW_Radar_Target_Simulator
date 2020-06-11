@@ -9,13 +9,14 @@
 % the obstruction map.
 % 
 % -------------------------------------------------------------------------
-
+close all
 clear
 %% Target Simulation
 global c_0;
 c_0 = 299792458;
-plotAntennas = [0]; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
 Szenarios = 1; % SET NUMBER OF SZENARIOS
+duration = 5; % SET DURATION OF A SZENARIO (sec)
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -24,7 +25,7 @@ fmcw = fmcw.init_RDmap();
 fmcw = fmcw.generateChirpSequence(); %Generate chirp waveform, initialize fmcw.chirps
 fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.antPattern
 fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
-
+tstep = fmcw.chirpsCycle*fmcw.chirpInterval;
 
 % Set dictionary to save results
 SimDataPath = 'SimulationData/';
@@ -33,23 +34,25 @@ if ~add_files && exist(SimDataPath(1:end-1),'dir')
     %clear Sim data folder
     rmdir('SimulationData','s')
 end
-status = mkdir([SimDataPath,'Szenario/']);
+
 file_offset = 0; %offset to keep existing files
 if add_files
     %Check for existing simulation data files
-    files = dir([SimDataPath,'Szenarios/Szenario*']);
+    files = dir([SimDataPath,'/Szenario*']);
     file_offset = length(files); % #files to keep  
 end
 
 
 for meas = 1:Szenarios
+    status = mkdir([SimDataPath, 'Szenario', num2str(meas+ file_offset)]);
     %% Targets in this Szenario
-    % Select random number of targets in szenario
-%     Pedestrians = floor(2*rand());
-    Pedestrians = 1;
-    Cars = 1;
-    Bicycles = floor(1*rand());
-%     Cars = floor(3*rand());
+    % Select random number of targets in this szenario
+    Pedestrians = floor(2*rand());
+    Pedestrians = 0;
+    Bicycles = floor(1.5*rand());
+    Bicycles = 0;
+    Cars = floor(2.5*rand());
+    Cars = 0;
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
     Labels = struct; %Collect all Labels in struct
@@ -59,11 +62,11 @@ for meas = 1:Szenarios
     for target = 1:Pedestrians
         ped = backscatterPedestrian;
         ped.Height = 1+rand()*1.3; % [1.0m, 2.3m]
-        ped.WalkingSpeed = 1.4*ped.Height; %  rand()*
+        ped.WalkingSpeed = rand()* 1.4*ped.Height; %  
         ped.OperatingFrequency = fmcw.f0;
         ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
         randposx = fmcw.rangeBins(end)*rand();
-        randposy = randposx* (rand()-0.5);
+        randposy = randposx* 2* (rand()-0.5);
         ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
         heading = rand()*360-180;
         ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
@@ -92,7 +95,7 @@ for meas = 1:Szenarios
         bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
         bike.OperatingFrequency = fmcw.f0;
         randposx = fmcw.rangeBins(end)*rand();
-        randposy = randposx* (rand()-0.5);
+        randposy = randposx* 2*(rand()-0.5);
         bike.InitialPosition = [randposx;randposy;0];
         heading = rand()*360-180;
         bike.InitialHeading = heading; %in degree, heading along x-axis
@@ -124,7 +127,7 @@ for meas = 1:Szenarios
         car = Car;
         car = car.initCar(0);
         randxpos = rand()*fmcw.rangeBins(end);
-        randypos = randxpos*(rand()-0.5);
+        randypos = randxpos*2*(rand()-0.5);
         randvel = rand() * fmcw.velBins(end);
         heading = rand()*360-180;
         car.xPos = randxpos; % x dist from radar
@@ -148,44 +151,53 @@ for meas = 1:Szenarios
         eval(['Targets.',name, '= car;']);
     end
     
+    %% Plan Trajectory of targets
+    Traj = TrajectoryPlanner;
+    Traj = init_TrajectoryPlanner(Traj, tstep, duration, Targets, fmcw);
     
-    %% Generate obstruction map for each chirp/time step
-    map = generateObstructionMap(Targets, fmcw);
-    
-    
-    %% Simulate Baseband Signals
-    %for each target in Targets
-    sb = zeros(fmcw.K, fmcw.L, fmcw.RXant); %empty Rx signal
-    names = fieldnames(Targets);
-    for i= 1:numel(fieldnames(Targets))
-        eval(['target = Targets.', names{i}, ';']);
-        if strcmp(names{i}(1:3), 'Ped')
-            targetID = 1;
-        elseif strcmp(names{i}(1:4),'Bicy')
-            targetID = 2;
-        elseif strcmp(names{i}(1:4), 'Vehi')
-            targetID = 3+target.typeNr;
-        end
-        %Model Radar Signal for selected Target
-        [sbTarget, obstruction] = modelSignal(target, targetID, map, fmcw);
-        eval(['Label.', names{i}, '(end) = obstruction;']); %set obstruction factor in Label
-        if obstruction == 4
-            Label = rmfield(Label, names{i}); % remove fully hidden target from label
-        end
-        sb =  sb + sbTarget;
-    end
-    
-    % Add Noise and static Clutter to baseband signal
-    sbn = fmcw.addGaussNoise(sb);
-    sbc = fmcw.addStaticClutter(sbn);
-    RD = fmcw.RDmap(sbc);
-    fmcw.plotRDmap(RD, [], plotAntennas);
+    % For each measurement step in this scenario TIME: 10 SECONDS
+    for t = 0:tstep:duration
+        %% Move Targets
+        Targets = move_TrajectoryPlanner(Traj, t/tstep+1, Targets);
+        
+        %% Generate obstruction map for each chirp/time step
+        map = generateObstructionMap(Targets, fmcw);
 
-    %DEBUG: Show Noise char over Range
-    plotNoise;
-    
-    
-    saveMat(RD, Labels, 'Szenario', meas+file_offset, SimDataPath)
+
+        %% Simulate Baseband Signals
+        %for each target in Targets
+        sb = zeros(fmcw.K, fmcw.L, fmcw.RXant); %empty Rx signal
+        names = fieldnames(Targets);
+        for i= 1:numel(fieldnames(Targets))
+            eval(['target = Targets.', names{i}, ';']);
+            if strcmp(names{i}(1:3), 'Ped')
+                targetID = 1;
+            elseif strcmp(names{i}(1:4),'Bicy')
+                targetID = 2;
+            elseif strcmp(names{i}(1:4), 'Vehi')
+                targetID = 3+target.typeNr;
+            end
+            %Model Radar Signal for selected Target
+            [sbTarget, obstruction] = modelSignal(target, targetID, map, fmcw);
+            eval(['Labels.', names{i}, '(end) = obstruction;']); %set obstruction factor in Label
+            if obstruction == 4
+                Labels = rmfield(Labels, names{i}); % remove fully hidden target from Labels
+            end
+            sb =  sb + sbTarget;
+        end
+
+        % Add Noise and static Clutter to baseband signal
+        sbn = fmcw.addGaussNoise(sb);
+        sbc = fmcw.addStaticClutter(sbn);
+        RD = fmcw.RDmap(sbc);
+        fmcw.plotRDmap(RD, [], plotAntennas);
+
+        %DEBUG: Show Noise char over Range
+        %plotNoise;
+
+
+        saveMat(RD, Labels, ['Szenario', num2str(meas+file_offset)], round(t/tstep), SimDataPath)
+    end
 end
 
 

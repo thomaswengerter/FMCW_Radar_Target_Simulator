@@ -228,7 +228,7 @@ classdef FMCWradar
             % Add Noise and range dep. Clutter to signal
             if obj.printNoiseCharacteristics
                 SNR = Ps/Pn;
-                fprintf('Generated gaussian Noise Floor at %.2f dB with Range dependency factor %.2f.\nSNR is %.5f (%.2f dB).\n', obj.NoiseFloor+dynOffset+FFToffset, RnoiseFaktor, SNR, 10*log10(SNR));
+                fprintf('Generated gaussian Noise Floor at %.2f dB with Range dependency factor %.2f.\nSNR is %.5f (%.2f dB).\n', obj.NoiseFloor+dynOffset, RnoiseFaktor, SNR, 10*log10(SNR));
             end
             s_beatnoisy = s_beat+ (noise+noiseR*RnoiseFaktor);
         end
