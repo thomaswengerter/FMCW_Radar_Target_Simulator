@@ -56,7 +56,15 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 CoveredFilter = zeros(size(azi));
                 for i = 1:size(azi)
                     % map = [tstep, azimuth (-90,+90), Range, (max height obstructed, target ID)]
-                    if map(chirp, azi(i)+90, ridx(i), 2)~= targetID && map(chirp, azi(i)+90, ridx(i), 1)>targetheight
+                    if ridx(i)>size(map,3)
+                        % This Scatterer is out of range but will be
+                        % considered if not covered
+                        if map(chirp, azi(i)+90, end, 2)~= targetID && map(chirp, azi(i)+90, end, 1)>targetheight
+                            %Covered by other Target
+                            CoveredFilter(i) = 1;
+                        end
+                    elseif map(chirp, azi(i)+90, ridx(i), 2)~= targetID && map(chirp, azi(i)+90, ridx(i), 1)>targetheight
+                        % This Scatterer is obstructed by other target
                         CoveredFilter(i) = 1;
                     end
                 end

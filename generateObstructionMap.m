@@ -7,12 +7,13 @@ function Rmap = generateObstructionMap(Targets, fmcw)
 Rmap = zeros(fmcw.L, 181, length(fmcw.rangeBins), 2);
 
 
-tnames = fieldnames(Targets);
-for i = 1:numel(tnames)
-    eval(['target = Targets.',tnames{i},';']);
-    if strcmp(tnames{i}(1:end-1),'Pedestrian') 
+sz = size(Targets);
+for i = 1:sz(1)
+    target = Targets{i,2};
+    if strcmp(Targets{i,1}(1:end-1),'Pedestrian') 
         % INDEX 1
         for chirp = 1:fmcw.L
+            target.release();
             [post,velt,axt] = move(target,fmcw.chirpInterval,target.InitialHeading);
             azi = atand(post(2,:)./post(1,:));
             aziCover = round(min(azi)): round(max(azi)); %target azi width
@@ -28,7 +29,7 @@ for i = 1:numel(tnames)
             end
         end
         
-    elseif strcmp(tnames{i}(1:end-1),'Bicycle') 
+    elseif strcmp(Targets{i,1}(1:end-1),'Bicycle') 
         % INDEX 2
         for chirp = 1:fmcw.L
             [post,velt,axt] = move(target,fmcw.chirpInterval,target.InitialHeading);
@@ -46,7 +47,7 @@ for i = 1:numel(tnames)
             end
         end
         
-    elseif strcmp(tnames{i}(1:end-1),'Car')
+    elseif strcmp(Targets{i,1}(1:end-1),'Car')
         % INDEX 3
         for chirp = 1:fmcw.L
             %[post,velt,axt] = move(target,tsamp,target.InitialHeading);

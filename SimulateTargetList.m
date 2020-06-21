@@ -16,7 +16,7 @@ global c_0;
 c_0 = 299792458;
 plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
 Szenarios = 1; % SET NUMBER OF SZENARIOS
-duration = 5; % SET DURATION OF A SZENARIO (sec)
+duration = 3; % SET DURATION OF A SZENARIO (sec)
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -39,27 +39,29 @@ file_offset = 0; %offset to keep existing files
 if add_files
     %Check for existing simulation data files
     files = dir([SimDataPath,'/Szenario*']);
-    file_offset = length(files); % #files to keep  
+    file_offset = length(files); % #files to keep
 end
 
 
 for meas = 1:Szenarios
     status = mkdir([SimDataPath, 'Szenario', num2str(meas+ file_offset)]);
+    fprintf('Simulate Szenario %i/%i...\n', meas, Szenarios)
     %% Targets in this Szenario
     % Select random number of targets in this szenario
-    Pedestrians = floor(2*rand());
-    Pedestrians = 0;
+    Pedestrians = floor(2.5*rand());
+    %Pedestrians = 1;
     Bicycles = floor(1.5*rand());
-    Bicycles = 0;
-    Cars = floor(2.5*rand());
-    Cars = 0;
+    %Bicycles = 0;
+    Cars = floor(3*rand());
+    %Cars = 0;
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
-    Labels = struct; %Collect all Labels in struct
-    Targets = struct; %Collect all Targets in struct
-    
+    %Labels = {}; %Collect all Labels in struct
+    Targets = cell(Pedestrians+Bicycles+Cars,2); %Collect all Targets in struct
+    Tidx = 0;
     %% Pedestrian Target
     for target = 1:Pedestrians
+        Tidx = Tidx+1;
         ped = backscatterPedestrian;
         ped.Height = 1+rand()*1.3; % [1.0m, 2.3m]
         ped.WalkingSpeed = rand()* 1.4*ped.Height; %  
@@ -79,16 +81,17 @@ for meas = 1:Szenarios
         azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
 
         %Label output and save
-        label = [targetR, targetV, azi, fmcw.egoMotion, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading];
+        %label = [targetR, targetV, azi, fmcw.egoMotion, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading, 0];
         name = ['Pedestrian', num2str(target)];
-        eval(['Labels.', name, '= label;']);
-        eval(['Targets.',name, '= ped;']);
+        Targets{Tidx,1} = name;
+        Targets{Tidx,2} = ped;
     end
 
 
 
     %% Bycicle Traget
     for target = 1:Bicycles
+        Tidx = Tidx+1;
         bike = backscatterBicyclist;
         Spokes = [20, 24, 28, 32, 36];
         bike.NumWheelSpokes = Spokes(ceil(rand()*length(Spokes)));
@@ -115,15 +118,16 @@ for meas = 1:Szenarios
         azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
 
         %Label output and save
-        label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
+        %label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading, 0];
         name = ['Bicycle', num2str(target)];
-        eval(['Labels.', name, '= label;']);
-        eval(['Targets.',name, '= bike;']);
+        Targets{Tidx,1} = name;
+        Targets{Tidx,2} = bike;
     end
 
 
     %% Car target
     for target = 1:Cars
+        Tidx = Tidx+1;
         car = Car;
         car = car.initCar(0);
         randxpos = rand()*fmcw.rangeBins(end);
@@ -145,44 +149,44 @@ for meas = 1:Szenarios
         car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
 
         %Label output and save
-        label =  [targetR, targetV, azi, fmcw.egoMotion, car.xPos, car.yPos, car.width, car.length, heading, 0];
+        %label =  [targetR, targetV, azi, fmcw.egoMotion, car.xPos, car.yPos, car.width, car.length, heading, 0];
         name = ['Vehicle', num2str(car.typeNr)];
-        eval(['Labels.', name, '= label;']);
-        eval(['Targets.',name, '= car;']);
+        Targets{Tidx,1} = name;
+        Targets{Tidx,2} = car;
     end
     
     %% Plan Trajectory of targets
     Traj = TrajectoryPlanner;
     Traj = init_TrajectoryPlanner(Traj, tstep, duration, Targets, fmcw);
-    
+    egoMotion = fmcw.egoMotion;
+    timesteps = 0:tstep:duration;
     % For each measurement step in this scenario TIME: 10 SECONDS
-    for t = 0:tstep:duration
+    parfor tidx = 1:floor(duration/tstep)
         %% Move Targets
-        Targets = move_TrajectoryPlanner(Traj, t/tstep+1, Targets);
+        t = timesteps(tidx);
+        [MovedTargets, Label] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
         
         %% Generate obstruction map for each chirp/time step
-        map = generateObstructionMap(Targets, fmcw);
+        map = generateObstructionMap(MovedTargets, fmcw);
 
 
         %% Simulate Baseband Signals
         %for each target in Targets
         sb = zeros(fmcw.K, fmcw.L, fmcw.RXant); %empty Rx signal
-        names = fieldnames(Targets);
-        for i= 1:numel(fieldnames(Targets))
-            eval(['target = Targets.', names{i}, ';']);
-            if strcmp(names{i}(1:3), 'Ped')
+        sz = size(MovedTargets);
+        for i= 1:sz(1)
+            Target = MovedTargets{i,2};
+            if strcmp(MovedTargets{i,1}(1:3), 'Ped')
                 targetID = 1;
-            elseif strcmp(names{i}(1:4),'Bicy')
+            elseif strcmp(MovedTargets{i,1}(1:4),'Bicy')
                 targetID = 2;
-            elseif strcmp(names{i}(1:4), 'Vehi')
-                targetID = 3+target.typeNr;
+            elseif strcmp(MovedTargets{i,1}(1:4), 'Vehi')
+                targetID = 3+Target.typeNr;
             end
             %Model Radar Signal for selected Target
-            [sbTarget, obstruction] = modelSignal(target, targetID, map, fmcw);
-            eval(['Labels.', names{i}, '(end) = obstruction;']); %set obstruction factor in Label
-            if obstruction == 4
-                Labels = rmfield(Labels, names{i}); % remove fully hidden target from Labels
-            end
+            [sbTarget, obstruction] = modelSignal(Target, targetID, map, fmcw);
+            Label{i,2}(end) = obstruction; %set obstruction factor in Label (1:visible, ..., 4: fully hidden)
+            
             sb =  sb + sbTarget;
         end
 
@@ -195,11 +199,10 @@ for meas = 1:Szenarios
         %DEBUG: Show Noise char over Range
         %plotNoise;
 
-
-        saveMat(RD, Labels, ['Szenario', num2str(meas+file_offset)], round(t/tstep), SimDataPath)
+        saveMat(RD, Label, ['Szenario', num2str(meas+file_offset)], round(t/tstep), SimDataPath)
     end
 end
-
+fprintf('Simulation completed.\n')
 
 %% Generate Sample Target List
 % Fields in Target struct:
