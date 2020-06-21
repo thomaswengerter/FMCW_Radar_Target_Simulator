@@ -10,7 +10,7 @@ classdef TrajectoryPlanner
         heading = [];       %heading
         trajectory = [];    %position
         velocity = [];      %velocity
-        plotTraj = true;    %bool for live plot
+        plotTraj = false;    %bool for live plot
     end
     
     methods
@@ -22,21 +22,23 @@ classdef TrajectoryPlanner
             %   Plot the trajectories in a live animation
             %
             
-            names = fieldnames(Targets); %names of all targets
+            %names = fieldnames(Targets); %names of all targets
+            sz = size(Targets);
+            
             
             %initialize traj time steps
-            acc = zeros(numel(names), floor(Szduration/tstep));         % acceleration
-            dheading = zeros(numel(names), floor(Szduration/tstep));    % changes in heading
-            v = zeros(numel(names), floor(Szduration/tstep));           % velocities
-            mapPos = zeros(numel(names), floor(Szduration/tstep), 2);   % xy positions
-            dir = zeros(numel(names), floor(Szduration/tstep));         % direction angle
+            acc = zeros(sz(1), floor(Szduration/tstep));         % acceleration
+            dheading = zeros(sz(1), floor(Szduration/tstep));    % changes in heading
+            v = zeros(sz(1), floor(Szduration/tstep));           % velocities
+            mapPos = zeros(sz(1), floor(Szduration/tstep), 2);   % xy positions
+            dir = zeros(sz(1), floor(Szduration/tstep));         % direction angle
             
             
-            for i = 1:numel(names)
-                if strcmp(names{i}(1:3),'Veh')
+            for i = 1:sz(1)
+                if strcmp(Targets{i,1}(1:3),'Veh')
                     %% Plan Vehicle
                     mv = fmcw.velBins(end); %15m/s max velocity
-                    eval(['v(i,:) = ones(1,size(v,2))* Targets.',names{i}, '.vel;']);
+                    v(i,:) = ones(1,size(v,2))* Targets{i,2}.vel;
                     eventduration = 4; % acceleration of a vehicle takes ~4s
                     %Vehicle acceleration
                     events = floor(rand()*Szduration/eventduration+0.3); %number of events possible in Szene
@@ -98,10 +100,10 @@ classdef TrajectoryPlanner
                         dheading(i,idx:idx+ceil(rndeventduration/tstep)) = rndturnangle/ceil(rndeventduration/tstep); % iterative update heading
                     end 
                     
-                elseif strcmp(names{i}(1:3),'Bic')
+                elseif strcmp(Targets{i,1}(1:3),'Bic')
                     %% Plan Bicycle
                     mv = 10; %10m/s max velocity
-                    eval(['v(i,:) = ones(1,size(v,2))* Targets.',names{i}, '.Speed;']);
+                    v(i,:) = ones(1,size(v,2))* Targets{i,2}.Speed;
                     eventduration = 4; % acceleration of a bicycle takes ~6s
                     %Bicycle acceleration
                     events = floor(rand()*Szduration/eventduration+0.3); %number of events possible in Szene
@@ -163,10 +165,10 @@ classdef TrajectoryPlanner
                         dheading(i,idx:idx+ceil(rndeventduration/tstep)) = rndturnangle/ceil(rndeventduration/tstep); % iterative update heading
                     end
                     
-                elseif strcmp(names{i}(1:3), 'Ped')
+                elseif strcmp(Targets{i,1}(1:3), 'Ped')
                     %% Plan Pedestrian
-                    eval(['mv = 1.4*Targets.',names{i}, '.Height;']);
-                    eval(['v(i,:) = ones(1,size(v,2))* Targets.',names{i}, '.WalkingSpeed;']);
+                    mv = 1.4*Targets{i,2}.Height;
+                    v(i,:) = ones(1,size(v,2))* Targets{i,2}.WalkingSpeed;
                     eventduration = 2; % acceleration of a pedestrian takes ~2s
                     %Pedestrian acceleration
                     events = floor(rand()*Szduration/eventduration+0.2); %number of events possible in Szene
@@ -209,15 +211,15 @@ classdef TrajectoryPlanner
                 
                 %% Map trajectory to xy
                 % Init first position
-                if strcmp(names{i}(1:3),'Veh')
-                    eval(['mapPos(i,1,:) = [Targets.', names{i},'.xPos, Targets.', names{i},'.yPos];']);
-                    eval(['dir(i,:) = Targets.', names{i},'.heading + dheading(i,1);']);
-                elseif strcmp(names{i}(1:3),'Bic')
-                    eval(['mapPos(i,1,:) = Targets.', names{i},'.InitialPosition(1:2);']);
-                    eval(['dir(i,:) = Targets.', names{i},'.InitialHeading + dheading(i,1);']);
-                elseif strcmp(names{i}(1:3), 'Ped')
-                    eval(['mapPos(i,1,:) = Targets.', names{i},'.InitialPosition(1:2);']); 
-                    eval(['dir(i,:) = Targets.', names{i},'.InitialHeading + dheading(i,1);']);
+                if strcmp(Targets{i,1}(1:3),'Veh')
+                    mapPos(i,1,:) = [Targets{i,2}.xPos, Targets{i,2}.yPos];
+                    dir(i,:) = Targets{i,2}.heading + dheading(i,1);
+                elseif strcmp(Targets{i,1}(1:3),'Bic')
+                    mapPos(i,1,:) = Targets{i,2}.InitialPosition(1:2);
+                    dir(i,:) = Targets{i,2}.InitialHeading + dheading(i,1);
+                elseif strcmp(Targets{i,1}(1:3), 'Ped')
+                    mapPos(i,1,:) = Targets{i,2}.InitialPosition(1:2);
+                    dir(i,:) = Targets{i,2}.InitialHeading + dheading(i,1);
                 end
 
                 for t = 2:floor(Szduration/tstep)
@@ -240,7 +242,7 @@ classdef TrajectoryPlanner
             
             
             
-            if obj.plotTraj && ~isempty(names)
+            if obj.plotTraj && sz(1)>0
                 %% plot Trajectory
                 % PLOT
                 figure
@@ -261,13 +263,13 @@ classdef TrajectoryPlanner
                 ylabel('y in metres');
                 xlabel('x in metres');
                 title('Movement of targets relative to radar at (0,0)')
-                legend(names{:});
+                legend(Targets{:,1});
             end
         end
         
         
         
-        function [Targets] = move_TrajectoryPlanner(obj, t, Targets)
+        function [Targets, Labels] = move_TrajectoryPlanner(obj, t, Targets, egoMotion)
             % Update target objects' positions and headings for each timestep
             %   obj.trajectory:         xy Positions for each time step t
             %   obj.heading:            heading angle for each time step t
@@ -276,23 +278,53 @@ classdef TrajectoryPlanner
             %   t:                      time step
             %   
 
-            names = fieldnames(Targets);
-
-            for i = 1:numel(names)
+            %names = fieldnames(Targets);
+            
+            sz = size(Targets);
+            Labels = cell(sz);
+            for i = 1:sz(1)
                 % Update target position to next sample
-                if strcmp(names{i}(1:3), 'Ped') 
-                    eval(['Targets.', names{i},'.InitialPosition(1:2) = obj.trajectory(i,t,:);']);
-                    eval(['Targets.', names{i},'.InitialHeading = obj.heading(i,t);']);
-                    eval(['Targets.',names{i}, '.WalkingSpeed = obj.velocity(i,t);']);
-                elseif strcmp(names{i}(1:3),'Bic')
-                    eval(['Targets.', names{i},'.InitialPosition(1:2) = obj.trajectory(i,t,:);']); 
-                    eval(['Targets.', names{i},'.InitialHeading = obj.heading(i,t);']);
-                    eval(['Targets.',names{i}, '.Speed = obj.velocity(i,t);']);
-                elseif strcmp(names{i}(1:3),'Veh')
-                    eval(['Targets.', names{i},'.xPos = obj.trajectory(i,t,1);']); 
-                    eval(['Targets.', names{i},'.xPos = obj.trajectory(i,t,2);']); 
-                    eval(['Targets.', names{i},'.heading = obj.heading(i,t);']);
-                    eval(['Targets.',names{i}, '.vel = obj.velocity(i,t);']);
+                if strcmp(Targets{i,1}(1:3), 'Ped') 
+                    Targets{i,2}.InitialPosition(1:2) = obj.trajectory(i,t,:);
+                    Targets{i,2}.InitialHeading = obj.heading(i,t);
+                    Targets{i,2}.WalkingSpeed = obj.velocity(i,t);
+                    
+                    % Calculate label
+                    Labels{i,1} = Targets{i,1};
+                    %targetR: Range (radial dist. from radar to target)
+                    %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
+                    targetR = sqrt(Targets{i,2}.InitialPosition(1)^2+Targets{i,2}.InitialPosition(2)^2);
+                    targetV = +Targets{i,2}.WalkingSpeed*cos(Targets{i,2}.InitialHeading/360*2*pi);
+                    azi = atand(Targets{i,2}.InitialPosition(2)/Targets{i,2}.InitialPosition(1));
+                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.InitialPosition(1), Targets{i,2}.InitialPosition(2), 0.65, 5, Targets{i,2}.InitialHeading, 0];
+                    
+                elseif strcmp(Targets{i,1}(1:3),'Bic')
+                    Targets{i,2}.InitialPosition(1:2) = obj.trajectory(i,t,:); 
+                    Targets{i,2}.InitialHeading = obj.heading(i,t);
+                    Targets{i,2}.Speed = obj.velocity(i,t);
+                    
+                    % Calculate label
+                    Labels{i,1} = Targets{i,1};
+                    %targetR: Range (radial dist. from radar to target)
+                    %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
+                    targetR = sqrt(Targets{i,2}.InitialPosition(1)^2+Targets{i,2}.InitialPosition(2)^2);
+                    targetV = +Targets{i,2}.Speed*cos(Targets{i,2}.InitialHeading/360*2*pi);
+                    azi = atand(Targets{i,2}.InitialPosition(2)/Targets{i,2}.InitialPosition(1));
+                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.InitialPosition(1), Targets{i,2}.InitialPosition(2), 0.65, 2, Targets{i,2}.InitialHeading, 0];
+                
+                elseif strcmp(Targets{i,1}(1:3),'Veh')
+                    Targets{i,2}.xPos = obj.trajectory(i,t,1);
+                    Targets{i,2}.xPos = obj.trajectory(i,t,2);
+                    Targets{i,2}.heading = obj.heading(i,t);
+                    Targets{i,2}.vel = obj.velocity(i,t);
+                    
+                    % Calculate label
+                    relangle = atand(car.yPos/car.xPos)-car.heading; %angle between heading and radial velocity
+                    targetR = sqrt(car.xPos^2+car.yPos^2); %radial distance
+                    targetV = cosd(relangle)*car.vel; %radial velocity
+                    azi = atand(car.yPos/car.xPos);
+                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.xPos, Targets{i,2}.yPos, Targets{i,2}.width, Targets{i,2}.height, Targets{i,2}.InitialHeading, 0];
+                
                 end
 
             end
