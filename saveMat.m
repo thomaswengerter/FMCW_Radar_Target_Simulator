@@ -1,9 +1,11 @@
 function saveMat(RD, label, targetType, targetNo, SimDataPath)
 %FUNCTION Save RDmap and label to .mat file
-%   targetType: 'Pedestrian', 'Bicycle', 'Car', 'Syntetic'
-%   targetNo:   target file index (for Bicycle3.mat)
+%% called from: TargetSimulation.m
+%   targetType: 'Pedestrian', 'Bicycle', 'Car', 'Szenario3'
+%   targetNo:   target file index (for Szenario3_1.mat, Bicycle_3.mat)
 %   SimDataPath: Path to sim result folder
-savePics = false;
+
+savePics = true;
 
 folder = [SimDataPath, targetType, '/'];
 
@@ -31,7 +33,7 @@ if savePics
     rD_gs = uint8(rD_gs*255);
 
     [~,~] = mkdir('SimulationData/YOLOpics');
-    imwrite(rD_gs, ['SimulationData/YOLOpics/', targetType, num2str(targetNo),'.png'])
+    imwrite(rD_gs, ['SimulationData/YOLOpics/', targetType, '_', num2str(targetNo),'.png'])
 end
 end
 

@@ -319,6 +319,7 @@ classdef TrajectoryPlanner
                     Targets{i,2}.vel = obj.velocity(i,t);
                     
                     % Calculate label
+                    Labels{i,1} = Targets{i,1};
                     relangle = atand(Targets{i,2}.yPos/Targets{i,2}.xPos)-Targets{i,2}.heading; %angle between heading and radial velocity
                     targetR = sqrt(Targets{i,2}.xPos^2+Targets{i,2}.yPos^2); %radial distance
                     targetV = cosd(relangle)*Targets{i,2}.vel; %radial velocity

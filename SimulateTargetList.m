@@ -8,15 +8,20 @@
 % Finally, signals are generated in modelSignal for each target considering
 % the obstruction map.
 % 
+% Label Format:
+% {TargetID;  [targetR, targetV, azi, egoMotion, xPos, yPos, width, length,
+%               heading, obstruction]}
+% 
 % -------------------------------------------------------------------------
 close all
 clear
+
 %% Target Simulation
 global c_0;
 c_0 = 299792458;
-plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = [8]; %list indices of RX antenna elements to be plotted in RD map
 Szenarios = 1; % SET NUMBER OF SZENARIOS
-duration = 3; % SET DURATION OF A SZENARIO (sec)
+duration = 0.03; % SET DURATION OF A SZENARIO (sec)
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -49,11 +54,11 @@ for meas = 1:Szenarios
     %% Targets in this Szenario
     % Select random number of targets in this szenario
     Pedestrians = floor(2.5*rand());
-    %Pedestrians = 1;
+    Pedestrians = 0;
     Bicycles = floor(1.5*rand());
-    %Bicycles = 0;
+    Bicycles = 0;
     Cars = floor(3*rand());
-    %Cars = 0;
+    Cars = 1;
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
     %Labels = {}; %Collect all Labels in struct
@@ -136,6 +141,7 @@ for meas = 1:Szenarios
         heading = rand()*360-180;
         car.xPos = randxpos; % x dist from radar
         car.yPos = randypos; % y dist from radar
+        car.yPos = 1;
         car.vel = randvel; %m/s
         car.heading = heading; %degrees, from x-axis
 
