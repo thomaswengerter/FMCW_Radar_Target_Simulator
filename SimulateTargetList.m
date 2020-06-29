@@ -19,9 +19,10 @@ clear
 %% Target Simulation
 global c_0;
 c_0 = 299792458;
-plotAntennas = [8]; %list indices of RX antenna elements to be plotted in RD map
-Szenarios = 1; % SET NUMBER OF SZENARIOS
-duration = 0.03; % SET DURATION OF A SZENARIO (sec)
+
+plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
+Szenarios = 100; % SET NUMBER OF SZENARIOS
+duration = 3; % SET DURATION OF A SZENARIO (sec)
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -53,12 +54,13 @@ for meas = 1:Szenarios
     fprintf('Simulate Szenario %i/%i...\n', meas, Szenarios)
     %% Targets in this Szenario
     % Select random number of targets in this szenario
+
     Pedestrians = floor(2.5*rand());
-    Pedestrians = 0;
+    %Pedestrians = 1;
     Bicycles = floor(1.5*rand());
-    Bicycles = 0;
+    %Bicycles = 0;
     Cars = floor(3*rand());
-    Cars = 1;
+    %Cars = 0;
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
     %Labels = {}; %Collect all Labels in struct
@@ -171,6 +173,7 @@ for meas = 1:Szenarios
         %% Move Targets
         t = timesteps(tidx);
         [MovedTargets, Label] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
+
         
         %% Generate obstruction map for each chirp/time step
         map = generateObstructionMap(MovedTargets, fmcw);

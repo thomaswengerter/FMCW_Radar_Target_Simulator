@@ -326,6 +326,7 @@ classdef TrajectoryPlanner
                     azi = atand(Targets{i,2}.yPos/Targets{i,2}.xPos);
                     Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.xPos, Targets{i,2}.yPos, Targets{i,2}.width, Targets{i,2}.length, Targets{i,2}.InitialHeading, 0];
                 
+
                 end
 
             end
