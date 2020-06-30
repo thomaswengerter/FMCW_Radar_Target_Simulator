@@ -6,7 +6,6 @@ Created on Sat Jun 27 12:03:29 2020
 """
 
 import numpy as np                                 # (pip install numpy)
-from skimage import measure                        # (pip install scikit-image)
 import json
 import scipy.io
 import os
@@ -214,10 +213,10 @@ def writeJSONfile(SimDataPath):
     annotation_id = 0
     annotations = []
     for szenario in range(1,NumSzenarios+1):
-        # IMAGE
-        image_id += 1
         NumMeas = len(os.listdir(SimDataPath+ 'Szenario'+ str(szenario)+ '/'))/2
         for meas in range(int(NumMeas)):
+            # IMAGE
+            image_id += 1
             Labels = scipy.io.loadmat(SimDataPath+ 'Szenario'+ str(szenario)+ '/'+ 'Szenario'+ str(szenario)+ '_Label_'+str(meas)+'.mat')
             filename = 'Szenario'+ str(szenario)+ '_'+str(meas)+'.mat'
             image = {
@@ -274,7 +273,8 @@ def writeJSONfile(SimDataPath):
     # Writing to sample.json 
     with open("Labels_RadarSimulation.json", "w") as outfile: 
         outfile.write(JSON) 
-    print('Writing JSON file complete! Labels are formated correctly for EfficientDet.')
+    print('Writing JSON file complete!')
+    print('Generated '+ str(annotation_id)+ ' annotations for '+ str(image_id)+ ' RD images.')
     return
   
     
