@@ -117,7 +117,7 @@ def plotBoundingBoxes(RD, labels):
     for Label in labels:
         #Plot Bounding Boxes
         # Calculate simple bounding box coords in R-vd
-        TargetID = np.squeeze(Label[0])
+        TargetID = str(np.squeeze(Label[0]))
         label = np.squeeze(Label[1])
         azi = label[2]
         heading = label[8]
@@ -167,7 +167,7 @@ def plotBoundingBoxes(RD, labels):
     plt.show()
     
 
-def writeJSONfile(SimDataPath, destinationPath):
+def writeJSONfile(SimDataPath):
     # SimDataPath = 'SimulationDataTrain/'
     dirs = os.listdir(SimDataPath)
     
@@ -234,7 +234,7 @@ def writeJSONfile(SimDataPath, destinationPath):
             for Label in Labels['label']:
                 # ANNOTATION
                 annotation_id += 1
-                TargetID = np.squeeze(Label[0])
+                TargetID = str(np.squeeze(Label[0]))
                 label = np.squeeze(Label[1])
                 annotation = generate_annotation(TargetID, label, image_id, annotation_id)
                 annotations.append(annotation) # collect annotations in long list
@@ -274,15 +274,15 @@ def writeJSONfile(SimDataPath, destinationPath):
     # Writing to sample.json 
     with open("Labels_RadarSimulation.json", "w") as outfile: 
         outfile.write(JSON) 
+    print('Writing JSON file complete! Labels are formated correctly for EfficientDet.')
     return
   
     
 
 # MAIN     
 
-SimDataPath = './SimulationData/'
-dest = './COCOjson'
-#os.mkdir(dest)
+SimDataPath = './SimulationDataTrain/'
 
-writeJSONfile(SimDataPath, dest)
+
+writeJSONfile(SimDataPath)
 
