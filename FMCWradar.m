@@ -91,7 +91,7 @@ classdef FMCWradar
             obj.velBins = (-obj.L/2:obj.L/2-1) *obj.dV;
             %RmaxChirp = (chirpInterval-chirpTime)*c0/2; %max unabiguous Range limited by receiving interval
             obj.Rmaxsamp = obj.fs/4*obj.c0*obj.chirpTime/obj.sweepBw; %max Range limited by sampling freq
-            obj.egoMotion = obj.velBins(end)* rand(); %random motion of the carrying car
+            obj.egoMotion = 0; %obj.velBins(end)* rand()  for random motion of the carrying car
         end
         
              
