@@ -9,6 +9,7 @@ import numpy as np                                 # (pip install numpy)
 import json
 import scipy.io
 import os
+import cv2
 
 
 def generate_annotation(TargetID, label, image_id, annotation_id):
@@ -31,13 +32,16 @@ def generate_annotation(TargetID, label, image_id, annotation_id):
     azi = label[2]
     heading = label[8]
     DOA = (azi+180+heading)%180
-    thres = np.arctan(label[6]/(label[7]*2))
+    if 'Ped' in TargetID:
+        label[7] = 0.5
+    thres = np.rad2deg(np.arctan(label[6]/(label[7]*2)))
+        
     if DOA<thres or (DOA>180-thres):
         #Illuminated from front/back
-        dR = abs(label[7]/(2*np.cos(DOA)))
+        dR = abs(label[7]/(2*np.cos(np.deg2rad(DOA))))
     else:
         #Illuminated from sides
-        dR = label[6]/(2*np.cos(DOA-90))
+        dR = abs(label[6]/(2*np.cos(np.deg2rad(DOA-90))))
     dV = label[1]/2
     
     minR = label[0]-dR
@@ -89,10 +93,26 @@ def generate_annotation(TargetID, label, image_id, annotation_id):
     return annotation
 
 
+
+def writeJPG(RD, image_id, trainvalname):
+    # Save RD as 2d grayscale jpg
+    #Reduce 3rd dimension
+    RDmap = np.amax(RD,2)
+    #Set limits
+    RDmap[RDmap < -185] = -185
+    RDmap[RDmap > -120] = -120
+    #Normalize and convert to grayscale
+    RDmap = cv2.UMat((RDmap+185)/(185-120) *255)
+    #Save JPG
+    folder = './COCO/images/'+ trainvalname + '/'
+    cv2.imwrite(folder+str(image_id)+'.jpg', RDmap)
+    
+    return
+
+
+
 def plotBoundingBoxes(RD, labels):
     import matplotlib.pyplot as plt
-    #import matplotlib.patches as patches
-    import cv2
     
     # Define RD map
     fmcwL = 256 #velbins/chirps 
@@ -108,9 +128,10 @@ def plotBoundingBoxes(RD, labels):
     
     #Reduce 3rd dimension
     RDmap = np.amax(RD,2)
-    #Normalize
+    #Set limits
     RDmap[RDmap < -185] = -185
     RDmap[RDmap > -120] = -120
+    #Normalize and convert to grayscale
     RDmap = cv2.UMat((RDmap+185)/(185-120) *255)
     
     for Label in labels:
@@ -121,13 +142,16 @@ def plotBoundingBoxes(RD, labels):
         azi = label[2]
         heading = label[8]
         DOA = (azi+180+heading)%180
-        thres = np.arctan(label[6]/(label[7]*2))
+        if 'Ped' in TargetID:
+            label[7] = 0.5
+        thres = np.rad2deg(np.arctan(label[6]/(label[7]*2)))
+            
         if DOA<thres or (DOA>180-thres):
             #Illuminated from front/back
-            dR = abs(label[7]/(2*np.cos(DOA)))
+            dR = abs(label[7]/(2*np.cos(np.deg2rad(DOA))))
         else:
             #Illuminated from sides
-            dR = label[6]/(2*np.cos(DOA-90))
+            dR = abs(label[6]/(2*np.cos(np.deg2rad(DOA-90))))
         dV = label[1]/2
     
         minR = int((label[0]-dR)/fmcwdR)
@@ -164,9 +188,10 @@ def plotBoundingBoxes(RD, labels):
     plt.xlabel('Velocity / m/s')
     plt.ylabel('Range / m')
     plt.show()
+    return
     
 
-def writeJSONfile(SimDataPath):
+def writeJSONfile(SimDataPath, writeJPGs, trainvalname):
     # SimDataPath = 'SimulationDataTrain/'
     dirs = os.listdir(SimDataPath)
     
@@ -218,7 +243,10 @@ def writeJSONfile(SimDataPath):
             # IMAGE
             image_id += 1
             Labels = scipy.io.loadmat(SimDataPath+ 'Szenario'+ str(szenario)+ '/'+ 'Szenario'+ str(szenario)+ '_Label_'+str(meas)+'.mat')
-            filename = 'Szenario'+ str(szenario)+ '_'+str(meas)+'.mat'
+            if writeJPGs:
+                RD = scipy.io.loadmat(SimDataPath+ 'Szenario'+ str(szenario)+ '/'+ 'Szenario'+ str(szenario)+ '_'+str(meas)+'.mat')
+                writeJPG(RD['RD'],image_id, trainvalname)
+            filename = str(image_id)+'.jpg'
             image = {
                 'license': 1,
                 'file_name': filename,
@@ -271,7 +299,7 @@ def writeJSONfile(SimDataPath):
     
     JSON = json.dumps(mainFrame)
     # Writing to sample.json 
-    with open("Labels_RadarSimulation.json", "w") as outfile: 
+    with open("./COCO/annotations/instances_"+ trainvalname +".json", "w") as outfile: 
         outfile.write(JSON) 
     print('Writing JSON file complete!')
     print('Generated '+ str(annotation_id)+ ' annotations for '+ str(image_id)+ ' RD images.')
@@ -282,7 +310,17 @@ def writeJSONfile(SimDataPath):
 # MAIN     
 
 SimDataPath = './SimulationDataTrain/'
+trainvalname = 'train2017'
+
+writeJPGs = True
 
 
-writeJSONfile(SimDataPath)
+if not os.path.exists('./COCO'):
+    stat = os.mkdir('./COCO')
+    stat = os.mkdir('./COCO/annotations')
+    
+if writeJPGs and not os.path.exists('./COCO/images'):
+    stat = os.mkdir('./COCO/images')
+    
+writeJSONfile(SimDataPath, writeJPGs, trainvalname)
 
