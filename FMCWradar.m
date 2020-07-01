@@ -364,31 +364,56 @@ classdef FMCWradar
         %% Plot the Range Doppler map
         function plotRDmap(obj, RDmap, target, plotAntennas)
             % Input:    RDmap (from RDmap())
-            for ant = plotAntennas
-                RDmap_plt = RDmap(:,:,ant);
+            
+            if plotAntennas == 0 
+                % Only plot range Doppler map (drop Azimuth component)
+                % Get rid of first range bins
+                rangeDoppler = RDmap(6:end, :,:);
+                % Max. across angle bins
+                rangeDoppler = max(rangeDoppler,[], 3);
+                
+                % Convert RD Spectrum to grey scale image, max. value -20, min. value
+                % -85. Output values are within 0 and 1. Max. and min. values are
+                % adjusted according to the data, so that they hava a dynamic range of
+                % around 65 dB
                 figure;
                 x = obj.velBins+obj.egoMotion; % Speed with egoMotion
                 y = obj.rangeBins(1:length(obj.rangeBins/2));
-    %             y = [fliplr(y),y];
-                if ~isempty(target) %show current target position
-                    % Transform target R and V to indices in RD map
-                    [~,targetRidx] = min(abs(target(1)-obj.rangeBins));
-                    [~,targetVidx] = min(abs(target(2)-obj.velBins));
-
-                    RDmap_plt = insertMarker(RDmap_plt, [targetVidx, targetRidx]); % add Marker
-                    %bRD = insertShape(bRD,'circle',[150 280 35],'LineWidth',5);
-                    fprintf('Simulation of Target starting at Range %.2f m and radial Velocity %.2f m/s.\n', ...
-                    target(1), target(2))
-                end
-                imagesc(x,y,RDmap_plt(:,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
+                imagesc(x,y,rangeDoppler+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
                 set(gca,'YDir','normal')
                 xlabel('Velocity in m/s')
                 ylabel('Range in m')
                 colorbar
                 colormap jet
-                title(['Contour of Backscattered Power at RX antenna ', num2str(ant), ' in dB'])
+                title(['Range-Doppler map of Backscattered Power in dB'])
+
+                
+            else
+                for ant = plotAntennas
+                    RDmap_plt = RDmap(:,:,ant);
+                    figure;
+                    x = obj.velBins+obj.egoMotion; % Speed with egoMotion
+                    y = obj.rangeBins(1:length(obj.rangeBins/2));
+        %             y = [fliplr(y),y];
+                    if ~isempty(target) %show current target position
+                        % Transform target R and V to indices in RD map
+                        [~,targetRidx] = min(abs(target(1)-obj.rangeBins));
+                        [~,targetVidx] = min(abs(target(2)-obj.velBins));
+
+                        RDmap_plt = insertMarker(RDmap_plt, [targetVidx, targetRidx]); % add Marker
+                        %bRD = insertShape(bRD,'circle',[150 280 35],'LineWidth',5);
+                        fprintf('Simulation of Target starting at Range %.2f m and radial Velocity %.2f m/s.\n', ...
+                        target(1), target(2))
+                    end
+                    imagesc(x,y,RDmap_plt(:,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
+                    set(gca,'YDir','normal')
+                    xlabel('Velocity in m/s')
+                    ylabel('Range in m')
+                    colorbar
+                    colormap jet
+                    title(['Contour of Backscattered Power at RX antenna ', num2str(ant), ' in dB'])
+                end
             end
-            
         end
         
     end
