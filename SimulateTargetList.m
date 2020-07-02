@@ -20,8 +20,8 @@ clear
 global c_0;
 c_0 = 299792458;
 
-plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
-Szenarios = 100; % SET NUMBER OF SZENARIOS
+plotAntennas = [0]; %list indices of RX antenna elements to be plotted in RD map
+Szenarios = 1; % SET NUMBER OF SZENARIOS
 duration = 3; % SET DURATION OF A SZENARIO (sec)
 
 %Generate Radar Object
@@ -38,7 +38,10 @@ SimDataPath = 'SimulationData/';
 add_files = false;
 if ~add_files && exist(SimDataPath(1:end-1),'dir')
     %clear Sim data folder
-    rmdir('SimulationData','s')
+    rmdir('SimulationData','s');
+    if exist('YOLOpics','dir')
+        rmdir('YOLOpics','s');
+    end
 end
 
 file_offset = 0; %offset to keep existing files
@@ -56,7 +59,7 @@ for meas = 1:Szenarios
     % Select random number of targets in this szenario
 
     Pedestrians = floor(2.5*rand());
-    %Pedestrians = 1;
+    %Pedestrians = 0;
     Bicycles = floor(1.5*rand());
     %Bicycles = 0;
     Cars = floor(3*rand());
@@ -136,14 +139,13 @@ for meas = 1:Szenarios
     for target = 1:Cars
         Tidx = Tidx+1;
         car = Car;
-        car = car.initCar(0);
+        car = car.initCar(floor(1.999* rand()));
         randxpos = rand()*fmcw.rangeBins(end);
         randypos = randxpos*2*(rand()-0.5);
         randvel = rand() * fmcw.velBins(end);
         heading = rand()*360-180;
         car.xPos = randxpos; % x dist from radar
         car.yPos = randypos; % y dist from radar
-        car.yPos = 1;
         car.vel = randvel; %m/s
         car.heading = heading; %degrees, from x-axis
 
@@ -167,13 +169,17 @@ for meas = 1:Szenarios
     Traj = TrajectoryPlanner;
     Traj = init_TrajectoryPlanner(Traj, tstep, duration, Targets, fmcw);
     egoMotion = fmcw.egoMotion;
-    timesteps = 0:tstep:duration;
+    
     % For each measurement step in this scenario TIME: 10 SECONDS
-    parfor tidx = 1:floor(duration/tstep)
+    for tidx = 1:floor(duration/tstep)
         %% Move Targets
-        t = timesteps(tidx);
         [MovedTargets, Label] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
-
+        sz = size(MovedTargets);        
+        for i = 1:sz(1)
+            if strcmp(MovedTargets{i,1}(1:4), 'Vehi')
+                MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw); %update car reflection point positions
+            end
+        end
         
         %% Generate obstruction map for each chirp/time step
         map = generateObstructionMap(MovedTargets, fmcw);
@@ -182,21 +188,20 @@ for meas = 1:Szenarios
         %% Simulate Baseband Signals
         %for each target in Targets
         sb = zeros(fmcw.K, fmcw.L, fmcw.RXant); %empty Rx signal
-        sz = size(MovedTargets);
         for i= 1:sz(1)
             Target = MovedTargets{i,2};
             if strcmp(MovedTargets{i,1}(1:3), 'Ped')
-                targetID = 1;
+                targetID = 1; 
             elseif strcmp(MovedTargets{i,1}(1:4),'Bicy')
                 targetID = 2;
-            elseif strcmp(MovedTargets{i,1}(1:4), 'Vehi')
+            else % strcmp(MovedTargets{i,1}(1:4), 'Vehi')
                 targetID = 3+Target.typeNr;
             end
             %Model Radar Signal for selected Target
-            [sbTarget, obstruction] = modelSignal(Target, targetID, map, fmcw);
-            Label{i,2}(end) = obstruction; %set obstruction factor in Label (1:visible, ..., 4: fully hidden)
-            
-            sb =  sb + sbTarget;
+%             [sbTarget, obstruction] = modelSignal(Target, targetID, map, fmcw);
+%             Label{i,2}(end) = obstruction; %set obstruction factor in Label (1:visible, ..., 4: fully hidden)
+%             
+%             sb =  sb + sbTarget;
         end
 
         % Add Noise and static Clutter to baseband signal
@@ -208,7 +213,7 @@ for meas = 1:Szenarios
         %DEBUG: Show Noise char over Range
         %plotNoise;
 
-        saveMat(RD, Label, ['Szenario', num2str(meas+file_offset)], round(t/tstep), SimDataPath)
+        saveMat(RD, Label, ['Szenario', num2str(meas+file_offset)], tidx, SimDataPath)
     end
 end
 fprintf('Simulation completed.\n')

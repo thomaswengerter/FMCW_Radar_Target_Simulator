@@ -10,7 +10,7 @@ classdef TrajectoryPlanner
         heading = [];       %heading
         trajectory = [];    %position
         velocity = [];      %velocity
-        plotTraj = false;    %bool for live plot
+        plotTraj = true;    %bool for live plot
     end
     
     methods
@@ -275,7 +275,7 @@ classdef TrajectoryPlanner
             %   obj.heading:            heading angle for each time step t
             %   obj.velocity:           velocity for each time step t
             %   Targets:                Targets to update
-            %   t:                      time step
+            %   t:                      time step (index)
             %   
 
             %names = fieldnames(Targets);
@@ -296,7 +296,9 @@ classdef TrajectoryPlanner
                     targetR = sqrt(Targets{i,2}.InitialPosition(1)^2+Targets{i,2}.InitialPosition(2)^2);
                     targetV = +Targets{i,2}.WalkingSpeed*cos(Targets{i,2}.InitialHeading/360*2*pi);
                     azi = atand(Targets{i,2}.InitialPosition(2)/Targets{i,2}.InitialPosition(1));
-                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.InitialPosition(1), Targets{i,2}.InitialPosition(2), 0.65, 5, Targets{i,2}.InitialHeading, 0];
+                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.InitialPosition(1), Targets{i,2}.InitialPosition(2), 0.65, 0.5, Targets{i,2}.InitialHeading, 0];
+                    
+                    
                     
                 elseif strcmp(Targets{i,1}(1:3),'Bic')
                     Targets{i,2}.InitialPosition(1:2) = obj.trajectory(i,t,:); 
@@ -314,9 +316,10 @@ classdef TrajectoryPlanner
                 
                 elseif strcmp(Targets{i,1}(1:3),'Veh')
                     Targets{i,2}.xPos = obj.trajectory(i,t,1);
-                    Targets{i,2}.xPos = obj.trajectory(i,t,2);
+                    Targets{i,2}.yPos = obj.trajectory(i,t,2);
                     Targets{i,2}.heading = obj.heading(i,t);
                     Targets{i,2}.vel = obj.velocity(i,t);
+                    
                     
                     % Calculate label
                     Labels{i,1} = Targets{i,1};

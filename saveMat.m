@@ -29,11 +29,11 @@ if savePics
     % Max. across angle bins
     rD_gs = max(rD_gs,[], 3);
 
-    % Scale them between 0 and 255
-    rD_gs = uint8(rD_gs*255);
+    % Scale them between 0 and 255 and flip
+    rD_gs = uint8(flipud(rD_gs*255));
 
-    [~,~] = mkdir('SimulationData/YOLOpics');
-    imwrite(rD_gs, ['SimulationData/YOLOpics/', targetType, '_', num2str(targetNo),'.png'])
+    [~,~] = mkdir('YOLOpics');
+    imwrite(rD_gs, ['YOLOpics/', targetType, '_', num2str(targetNo),'.png'])
 end
 end
 

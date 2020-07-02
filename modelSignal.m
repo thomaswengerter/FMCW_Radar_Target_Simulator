@@ -36,14 +36,24 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
     if ~isempty(target)
         for chirp = 1:fmcw.L
             % Looping through chirps
+            
+            %% Move Targets
             [posr,velr,axr] = fmcw.MSradarplt(tsamp); % current Position of Radar
             %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
             if targetID >= 3
                 [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
+            elseif targetID == 2
+                %target.release();
+                [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move bike
+                % Reduce amount of scatterers randomly
+                %boolidx = round(rand(1,size(post,2)));
+                %post(:,boolidx<=0) = [];
+                %velt(:,boolidx<=0) = [];
             else
-                [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move ped / bike
+                [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move ped
             end
             
+            %% Obstruction Map
             if ~isempty(map)
                 %Check visibility on map
                 ridx = ceil(sqrt(post(1,:).^2+post(2,:).^2)./fmcw.dR);
@@ -84,6 +94,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 end
             end
             
+            %% Reflect Signal from Scatterers
             [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
             shape = size(post);
             N = shape(end); % getNumScatters(target)
@@ -111,7 +122,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
     end
 
     
-    %NOT RECOMMENDED: Backscatter Static Clutter
+    %% NOT RECOMMENDED: Backscatter Static Clutter Scatterers
     % Rather use function fmcw.addStaticClutter(s_beat) for better
     % simulation performance
     
@@ -155,7 +166,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
         end
     end
     
-    % Radar RX Signal Processing
+    %% Radar RX Signal Processing
     xRX = xRX + cRX; %add target and clutter signals
     sb = zeros(size(xRX));
     for ant = 1:fmcw.RXant
@@ -167,7 +178,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
     idxstep = fmcw.Propagation_fs/fmcw.fs;
     sb = sb(1:idxstep:end,:,:);
     
-    % Crop TX pause between chirps
+    %% Crop TX pause between chirps
     if strcmp(fmcw.chirpShape,'SAWgap') && sb(fmcw.K+1,1,1)>0
         % Check for pause after chirp
         error('\nAre you sure you selected the correct Chirp Shape? No gap between SAW chirps detected\n\n')
