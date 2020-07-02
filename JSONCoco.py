@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Jun 27 12:03:29 2020
+Write the simulated Radar data in COCO annotation format and grayscale JPG images.
 
 @author: Thomas
 """
@@ -191,7 +192,7 @@ def plotBoundingBoxes(RD, labels):
     return
     
 
-def writeJSONfile(SimDataPath, writeJPGs, trainvalname):
+def writeJSONfile(SimDataPath, writeJPGs, trainvalname, drawBoxes):
     # SimDataPath = 'SimulationDataTrain/'
     dirs = os.listdir(SimDataPath)
     
@@ -266,8 +267,8 @@ def writeJSONfile(SimDataPath, writeJPGs, trainvalname):
                 annotation = generate_annotation(TargetID, label, image_id, annotation_id)
                 annotations.append(annotation) # collect annotations in long list
             
-            drawBoxesinPlot = True #DEBUG
-            if drawBoxesinPlot:
+            #DEBUG
+            if drawBoxes:
                 RD = scipy.io.loadmat(SimDataPath+ 'Szenario'+ str(szenario)+ '/'+  'Szenario'+ str(szenario)+ '_'+str(meas)+'.mat')
                 plotBoundingBoxes(RD['RD'], Labels['label'])
                 
@@ -302,7 +303,9 @@ def writeJSONfile(SimDataPath, writeJPGs, trainvalname):
     with open("./COCO/annotations/instances_"+ trainvalname +".json", "w") as outfile: 
         outfile.write(JSON) 
     print('Writing JSON file complete!')
-    print('Generated '+ str(annotation_id)+ ' annotations for '+ str(image_id)+ ' RD images.')
+    if writeJPGs:
+        print('Writing JPG images complete!')
+    print('Generated '+ str(annotation_id)+ ' annotations for '+ str(image_id)+ ' radar szenarios.')
     return
   
     
@@ -313,7 +316,7 @@ SimDataPath = './SimulationDataTrain/'
 trainvalname = 'train2017'
 
 writeJPGs = True
-
+drawBoxes = False
 
 if not os.path.exists('./COCO'):
     stat = os.mkdir('./COCO')
@@ -321,6 +324,8 @@ if not os.path.exists('./COCO'):
     
 if writeJPGs and not os.path.exists('./COCO/images'):
     stat = os.mkdir('./COCO/images')
+    stat = os.mkdir('./COCO/images/'+trainvalname)
+
     
-writeJSONfile(SimDataPath, writeJPGs, trainvalname)
+writeJSONfile(SimDataPath, writeJPGs, trainvalname, drawBoxes)
 
