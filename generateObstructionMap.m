@@ -21,9 +21,11 @@ for i = 1:sz(1)
             heightCover = target.Height; %target height
             for a = aziCover
                 for idx = RidxCover:length(fmcw.rangeBins)
-                    if (Rmap(chirp, a+90,  idx, 2) == 0) || (Rmap(chirp, a+90, idx, 1) <= heightCover)
-                        % No larger Element in front
-                        Rmap(chirp, a+90,  idx, :) = [heightCover, 1]; %Position obstruction in map                  
+                    if (a+90)<=size(Rmap,2)&& (a+90)>0
+                        if (Rmap(chirp, a+90,  idx, 2) == 0) || (Rmap(chirp, a+90, idx, 1) <= heightCover)
+                            % No larger Element in front
+                            Rmap(chirp, a+90,  idx, :) = [heightCover, 1]; %Position obstruction in map                  
+                        end
                     end
                 end
             end
@@ -39,27 +41,31 @@ for i = 1:sz(1)
             heightCover = max(post(3,:)); %target height
             for a = aziCover
                 for idx = RidxCover:length(fmcw.rangeBins)
-                    if (Rmap(chirp, a+90,  idx, 2) == 0) || (Rmap(chirp, a+90, idx, 1) <= heightCover)
-                        % No larger Element in front
-                        Rmap(chirp, a+90,  idx, :) = [heightCover, 2]; %Position obstruction in map                  
+                    if (a+90)<=size(Rmap,2)&& (a+90)>0
+                        if (Rmap(chirp, a+90,  idx, 2) == 0) || (Rmap(chirp, a+90, idx, 1) <= heightCover)
+                            % No larger Element in front
+                            Rmap(chirp, a+90,  idx, :) = [heightCover, 2]; %Position obstruction in map                  
+                        end
                     end
                 end
             end
         end
         
-    elseif strcmp(Targets{i,1}(1:end-1),'Car')
+    elseif strcmp(Targets{i,1}(1:end-1),'Veh')
         % INDEX 3
         for chirp = 1:fmcw.L
             %[post,velt,axt] = move(target,tsamp,target.InitialHeading);
             %azi = atand(post(2,:)./post(1,:));
             %aziCover = round(min(azi)): round(max(azi)); %target azi width
             %RidxCover = floor(min(sqrt(post(1,:).^2+post(2,:).^2))/fmcw.dR); %target min range
-            heightCover = car.Height; %target height
+            heightCover = target.Height; %target height
             for a = 1:length(target.aziCoverage)
-                for idx = target.rCoverage(a):length(fmcw.rangeBins)
-                    if (Rmap(chirp, target.aziCoverage(a)+90,  idx, 2) == 0) || (Rmap(chirp, target.aziCoverage(a)+90, idx, 1) <= heightCover)
-                        % No larger Element in front
-                        Rmap(chirp, target.aziCoverage(a)+90,  idx, :) = [heightCover, 3+car.typeNr]; %Position obstruction in map                  
+                for idx = (floor(target.rCoverage(a)/fmcw.dR)+1):length(fmcw.rangeBins)
+                    if (target.aziCoverage(a)+90)<= size(Rmap,2) && (target.aziCoverage(a)+90)>0
+                        if (Rmap(chirp, target.aziCoverage(a)+90,  idx, 2) == 0) || (Rmap(chirp, target.aziCoverage(a)+90, idx, 1) <= heightCover)
+                            % No larger Element in front
+                            Rmap(chirp, target.aziCoverage(a)+90,  idx, :) = [heightCover, 3+target.typeNr]; %Position obstruction in map                  
+                        end
                     end
                 end
             end
