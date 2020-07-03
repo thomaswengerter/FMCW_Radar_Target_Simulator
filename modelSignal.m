@@ -40,17 +40,28 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             %% Move Targets
             [posr,velr,axr] = fmcw.MSradarplt(tsamp); % current Position of Radar
             %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
-            if targetID >= 3
+            if targetID >= 3 % Vehicle
                 [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
-            elseif targetID == 2
+                %boolidx = round(rand(1,size(post,2))-0.4);
+                %target = target.release(boolidx, fmcw.c0, fmcw.f0);
+                %post(:,boolidx>0) = [];
+                %velt(:,boolidx>0) = [];
+                %axt(:,:,boolidx>0) = [];
+            elseif targetID == 2 % Bicycle
                 %target.release();
                 [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move bike
                 % Reduce amount of scatterers randomly
                 %boolidx = round(rand(1,size(post,2)));
-                %post(:,boolidx<=0) = [];
-                %velt(:,boolidx<=0) = [];
-            else
+                %post(:,boolidx>0) = [];
+                %velt(:,boolidx>0) = [];
+                %axt(:,:,boolidx>0) = [];
+            else %Pedestrian
+                %target.release()
                 [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move ped
+                %boolidx = round(rand(1,size(post,2))-0.4);
+                %post(:,boolidx>0) = [];
+                %velt(:,boolidx>0) = [];
+                %axt(:,:,boolidx>0) = [];
             end
             
             %% Obstruction Map
@@ -88,9 +99,24 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                     elseif sum(CoveredFilter)>(length(post)/2)
                         obstruction = 2; % more than 1/2 of the target points are obstructed
                     end
-                    post(CoveredFilter) = [];
-                    velt(CoveredFilter) = [];
-                    axt(CoveredFilter) = [];
+                    if targetID>=3 % Vehicle
+                        target = target.release(CoveredFilter, fmcw.c0, fmcw.f0);
+                        post(:,CoveredFilter>=1) = [];
+                        velt(:,CoveredFilter>=1) = [];
+                        axt(:,:,CoveredFilter>=1) = [];
+                    elseif targetID == 2 % Bicycle
+                        target.release()
+                        post(:,CoveredFilter>=1) = [];
+                        velt(:,CoveredFilter>=1) = [];
+                    else % Pedestrian
+                        % Does not work for backscatterPedestrian Object
+                        %target.release()
+                        %post(:,CoveredFilter>=1) = [];
+                        %velt(:,CoveredFilter>=1) = [];
+                        %axt(:,:,CoveredFilter>=1) = [];
+                    end
+                                        
+                    
                 end
             end
             

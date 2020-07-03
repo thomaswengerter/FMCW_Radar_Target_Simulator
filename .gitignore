@@ -1,5 +1,6 @@
 *.asv
 SimulationData
+YOLOpics
 testOutput.m
 createMat.m
 plotNoise.m

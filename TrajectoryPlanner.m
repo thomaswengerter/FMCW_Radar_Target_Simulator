@@ -10,7 +10,7 @@ classdef TrajectoryPlanner
         heading = [];       %heading
         trajectory = [];    %position
         velocity = [];      %velocity
-        plotTraj = true;    %bool for live plot
+        plotTraj = false;    %bool for live plot
     end
     
     methods

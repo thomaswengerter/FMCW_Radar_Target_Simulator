@@ -20,8 +20,8 @@ clear
 global c_0;
 c_0 = 299792458;
 
-plotAntennas = [0]; %list indices of RX antenna elements to be plotted in RD map
-Szenarios = 1; % SET NUMBER OF SZENARIOS
+plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
+Szenarios = 100; % SET NUMBER OF SZENARIOS
 duration = 3; % SET DURATION OF A SZENARIO (sec)
 
 %Generate Radar Object
@@ -61,7 +61,7 @@ for meas = 1:Szenarios
     Pedestrians = floor(2.5*rand());
     %Pedestrians = 0;
     Bicycles = floor(1.5*rand());
-    %Bicycles = 0;
+    %Bicycles = 1;
     Cars = floor(3*rand());
     %Cars = 0;
     
@@ -171,7 +171,7 @@ for meas = 1:Szenarios
     egoMotion = fmcw.egoMotion;
     
     % For each measurement step in this scenario TIME: 10 SECONDS
-    for tidx = 1:floor(duration/tstep)
+    parfor tidx = 1:floor(duration/tstep)
         %% Move Targets
         [MovedTargets, Label] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
         sz = size(MovedTargets);        
@@ -198,10 +198,10 @@ for meas = 1:Szenarios
                 targetID = 3+Target.typeNr;
             end
             %Model Radar Signal for selected Target
-%             [sbTarget, obstruction] = modelSignal(Target, targetID, map, fmcw);
-%             Label{i,2}(end) = obstruction; %set obstruction factor in Label (1:visible, ..., 4: fully hidden)
-%             
-%             sb =  sb + sbTarget;
+            [sbTarget, obstruction] = modelSignal(Target, targetID, map, fmcw);
+            Label{i,2}(end) = obstruction; %set obstruction factor in Label (1:visible, ..., 4: fully hidden)
+            
+            sb =  sb + sbTarget;
         end
 
         % Add Noise and static Clutter to baseband signal
