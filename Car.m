@@ -32,8 +32,8 @@ classdef Car
         aziCoverage = [];  %Azimut coverage
         rCoverage = []; %Range coverage
         
-        
-        InitialHeading = []; %spaceholder
+        RCSsigma = []; %RCS of individual backscatterers
+        InitialHeading = []; %heading in angle relative to x axis
         Acceleration = []; %Acceleration for all move() steps
         N = []; %final Number of Scattering points
         TargetPlatform = []; %target platform
@@ -655,7 +655,7 @@ classdef Car
             hittingAngle = abs(normAngle(obj,DOA))+1;
             RCSdBsm = interp1(0:10:180, obj.RCS, hittingAngle); % Find RCS for corresponding DOA from measurement data
             relRCS = 1/sum([Scatterer(:,4)', wheelScatterer(:,4)']) * [Scatterer(:,4)', wheelScatterer(:,4)']; % relative RCS contribution [0,1]
-            RCSsigma = relRCS* 10^(RCSdBsm/10); %(/30 for measurement) in square meters
+            obj.RCSsigma = relRCS* 10^(RCSdBsm/10); %(/30 for measurement) in square meters
             
             
             %--------------------------------------------------------------
@@ -672,7 +672,7 @@ classdef Car
             
             
             % Collect all Car Scattering Points
-            obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', RCSsigma,...
+            obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', obj.RCSsigma,...
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
             
             obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)', wheelScatterer(:,1)'; Scatterer(:,2)',wheelScatterer(:,2)'; Elref', WheelElref'], ...
@@ -716,6 +716,15 @@ classdef Car
             RXsig = obj.CarTarget(xtrans, true);
         end
         
+        function obj = release(obj, bool, fmcwc0, fmcwf0)
+            % Call radar target release function for changes of reflection
+            % points
+            obj.CarTarget.release();
+            RCSsig = obj.RCSsigma;
+            RCSsig(bool>0) = [];
+            obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', RCSsig,...
+                    'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
+        end
     end
 end
 
