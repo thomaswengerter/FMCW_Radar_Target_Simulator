@@ -38,9 +38,10 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             % Looping through chirps
             
             %% Move Targets
-            [posr,velr,axr] = fmcw.MSradarplt(tsamp); % current Position of Radar
+            [posr,velr,~] = fmcw.MSradarplt(tsamp); % current Position of Radar
             %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
             if targetID >= 3 % Vehicle
+                target.CarTarget.release();
                 [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
                 %boolidx = round(rand(1,size(post,2))-0.4);
                 %target = target.release(boolidx, fmcw.c0, fmcw.f0);
@@ -48,17 +49,16 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 %velt(:,boolidx>0) = [];
                 %axt(:,:,boolidx>0) = [];
             elseif targetID == 2 % Bicycle
-                %target.release();
+                target.release();
                 [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move bike
                 % Reduce amount of scatterers randomly
-                %boolidx = round(rand(1,size(post,2)));
+                %boolidx = round(rand(1,size(post,2))+0.4);
                 %post(:,boolidx>0) = [];
                 %velt(:,boolidx>0) = [];
-                %axt(:,:,boolidx>0) = [];
             else %Pedestrian
-                %target.release()
+                target.release()
                 [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move ped
-                %boolidx = round(rand(1,size(post,2))-0.4);
+                %boolidx = round(rand(1,size(post,2)));
                 %post(:,boolidx>0) = [];
                 %velt(:,boolidx>0) = [];
                 %axt(:,:,boolidx>0) = [];
@@ -75,18 +75,20 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                     targetheight = max(post(3,:)); %height of bicycle
                 end
                 CoveredFilter = zeros(size(azi));
-                for i = 1:size(azi)
-                    % map = [tstep, azimuth (-90,+90), Range, (max height obstructed, target ID)]
-                    if ridx(i)>size(map,3)
-                        % This Scatterer is out of range but will be
-                        % considered if not covered
-                        if map(chirp, azi(i)+90, end, 2)~= targetID && map(chirp, azi(i)+90, end, 1)>targetheight
-                            %Covered by other Target
+                for i = 1:length(azi)
+                    if abs(azi(i))<90
+                        % map = [tstep, azimuth (-90,+90), Range, (max height obstructed, target ID)]
+                        if ridx(i)>size(map,3)
+                            % This Scatterer is out of range but will be
+                            % considered if not covered
+                            if map(chirp,azi(i)+90, end, 2)~= targetID && map(chirp, azi(i)+90, end, 1)>targetheight
+                                %Covered by other Target
+                                CoveredFilter(i) = 1;
+                            end
+                        elseif map(chirp, azi(i)+90, ridx(i), 2)~= targetID && map(chirp, azi(i)+90, ridx(i), 1)>targetheight 
+                            % This Scatterer is obstructed by other target
                             CoveredFilter(i) = 1;
                         end
-                    elseif map(chirp, azi(i)+90, ridx(i), 2)~= targetID && map(chirp, azi(i)+90, ridx(i), 1)>targetheight
-                        % This Scatterer is obstructed by other target
-                        CoveredFilter(i) = 1;
                     end
                 end
                 % Filter covered Scatterers
@@ -100,17 +102,15 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                         obstruction = 2; % more than 1/2 of the target points are obstructed
                     end
                     if targetID>=3 % Vehicle
-                        target = target.release(CoveredFilter, fmcw.c0, fmcw.f0);
                         post(:,CoveredFilter>=1) = [];
                         velt(:,CoveredFilter>=1) = [];
                         axt(:,:,CoveredFilter>=1) = [];
+                        target = RemoveHiddenScatterers(target, CoveredFilter, fmcw.c0, fmcw.f0);
                     elseif targetID == 2 % Bicycle
-                        target.release()
                         post(:,CoveredFilter>=1) = [];
                         velt(:,CoveredFilter>=1) = [];
                     else % Pedestrian
                         % Does not work for backscatterPedestrian Object
-                        %target.release()
                         %post(:,CoveredFilter>=1) = [];
                         %velt(:,CoveredFilter>=1) = [];
                         %axt(:,:,CoveredFilter>=1) = [];
@@ -121,28 +121,31 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             end
             
             %% Reflect Signal from Scatterers
-            [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
             shape = size(post);
             N = shape(end); % getNumScatters(target)
-            fmcw.MSchan.release();
-            xtrans = fmcw.MSchan(repmat(xTX,1,N),posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
-            RXsig = reflect(target,xtrans,angle); %receive sum of Reflections from target
-
-            mangle = mean(angle,2); %angle between target and radar
-            if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100
-                angle(angle<-100) = angle(angle<-100)+360;
-                mangle = mean(angle,2);
-                if mangle(1)>180
-                    mangle(1) = mangle(1)-360;
-                end
-            end
+            if N>0
+                [~,angle] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
             
-            % TODO: Check why mangle required for other targets????
-            if targetID >= 3
-                angle(angle>180) = angle(angle>180)-360;
-                xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, angle, fmcw.f0, fmcw.c0)); 
-            else
-                xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, mangle, fmcw.f0, fmcw.c0)); 
+                fmcw.MSchan.release();
+                xtrans = fmcw.MSchan(repmat(xTX,1,N),posr,post,velr,velt); %Signal transmission with incident sig for each scatterer
+                RXsig = reflect(target,xtrans,angle); %receive sum of Reflections from target
+
+                mangle = mean(angle,2); %angle between target and radar
+                if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100
+                    angle(angle<-100) = angle(angle<-100)+360;
+                    mangle = mean(angle,2);
+                    if mangle(1)>180
+                        mangle(1) = mangle(1)-360;
+                    end
+                end
+
+                % TODO: Check why mangle required for other targets????
+                if targetID >= 3
+                    angle(angle>180) = angle(angle>180)-360;
+                    xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, angle, fmcw.f0, fmcw.c0)); 
+                else
+                    xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, mangle, fmcw.f0, fmcw.c0)); 
+                end
             end
         end
     end
@@ -173,7 +176,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
 
             for chirp = 1:fmcw.L
-                [posr,velr,axr] = fmcw.MSradarplt(tsamp);
+                [posr,velr,~] = fmcw.MSradarplt(tsamp);
                 [~,angle] = rangeangle(posr,post,axt);
                 mangle = mean(angle,2); %angle between target and radar
                 if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100

@@ -716,10 +716,11 @@ classdef Car
             RXsig = obj.CarTarget(xtrans, true);
         end
         
-        function obj = release(obj, bool, fmcwc0, fmcwf0)
+        
+        %% Release Car Target Object
+        function obj = RemoveHiddenScatterers(obj, bool, fmcwc0, fmcwf0)
             % Call radar target release function for changes of reflection
             % points
-            obj.CarTarget.release();
             RCSsig = obj.RCSsigma;
             RCSsig(bool>0) = [];
             obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', RCSsig,...
