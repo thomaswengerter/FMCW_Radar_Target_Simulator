@@ -21,8 +21,8 @@ global c_0;
 c_0 = 299792458;
 
 plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
-Szenarios = 100; % SET NUMBER OF SZENARIOS
-duration = 3; % SET DURATION OF A SZENARIO (sec)
+Szenarios = 1; % SET NUMBER OF SZENARIOS
+duration = 0.03; % SET DURATION OF A SZENARIO (sec)
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -59,11 +59,11 @@ for meas = 1:Szenarios
     % Select random number of targets in this szenario
 
     Pedestrians = floor(2.5*rand());
-    %Pedestrians = 0;
+    Pedestrians = 1;
     Bicycles = floor(1.5*rand());
-    %Bicycles = 1;
+    Bicycles = 0;
     Cars = floor(3*rand());
-    %Cars = 0;
+    Cars = 1;
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
     %Labels = {}; %Collect all Labels in struct
@@ -80,6 +80,7 @@ for meas = 1:Szenarios
         randposx = fmcw.rangeBins(end)*rand();
         randposy = randposx* 2* (rand()-0.5);
         ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
+        ped.InitialPosition = [3; 0; 0];
         heading = rand()*360-180;
         ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
 
@@ -144,8 +145,8 @@ for meas = 1:Szenarios
         randypos = randxpos*2*(rand()-0.5);
         randvel = rand() * fmcw.velBins(end);
         heading = rand()*360-180;
-        car.xPos = randxpos; % x dist from radar
-        car.yPos = randypos; % y dist from radar
+        car.xPos = 7; % x dist from radar
+        car.yPos = 0; % y dist from radar
         car.vel = randvel; %m/s
         car.heading = heading; %degrees, from x-axis
 
@@ -171,7 +172,7 @@ for meas = 1:Szenarios
     egoMotion = fmcw.egoMotion;
     
     % For each measurement step in this scenario TIME: 10 SECONDS
-    parfor tidx = 1:floor(duration/tstep)
+    for tidx = 1:floor(duration/tstep)
         %% Move Targets
         [MovedTargets, Label] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
         sz = size(MovedTargets);        

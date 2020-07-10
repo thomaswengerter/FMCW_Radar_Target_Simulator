@@ -726,6 +726,13 @@ classdef Car
             obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', RCSsig,...
                     'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
         end
+        
+        
+        %% Restore Car Target Object
+        function obj = restoreReflectionPoints(obj, fmcwc0, fmcwf0)
+            obj.CarTarget = phased.RadarTarget('Model', 'Swerling2','MeanRCS', obj.RCSsigma,...
+                    'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
+        end
     end
 end
 
