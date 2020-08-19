@@ -47,6 +47,7 @@ if Pedestrians && add_files
     file_offset = length(files); % #files to keep  
 end
 
+fprintf('Simulate Pedestrians...\n ')
 parfor target = 1:Pedestrians
     ped = backscatterPedestrian;
     ped.Height = 1+rand(); % [1m,2m]
@@ -80,7 +81,7 @@ parfor target = 1:Pedestrians
     label = [targetR, targetV, azi, fmcw.egoMotion, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading];
     saveMat(pRD, label, 'Pedestrian', target+file_offset, SimDataPath)
 end
-
+fprintf('Done!\n')
 
 
 %% Bycicle Traget
@@ -91,6 +92,7 @@ if Bicycles && add_files
     file_offset = length(files); % #files to keep  
 end
 
+fprintf('Simulate Bicycles...\n')
 parfor target = 1:Bicycles
     bike = backscatterBicyclist;
     Spokes = [20, 24, 28, 32, 36];
@@ -129,6 +131,7 @@ parfor target = 1:Bicycles
     label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
     saveMat(bRD, label, 'Bicycle', target+file_offset, SimDataPath)
 end
+fprintf('Done!\n')
 
 
 %% Car target
@@ -138,6 +141,8 @@ if Cars && add_files
     files = dir([SimDataPath,'Car/Car*']);
     file_offset = length(files); % #files to keep  
 end
+
+fprintf('Simulate Cars...')
 parfor target = 1:Cars
     car = Car;
     car = car.initCar(0);
@@ -177,6 +182,7 @@ parfor target = 1:Cars
     label = [targetR, targetV, azi, fmcw.egoMotion, car.xPos, car.yPos, car.width, car.length, heading, 0];
     saveMat(cRD, label, 'Car', target+file_offset, SimDataPath)
 end
+fprintf('Done!\n')
 
 
 %% Syntetic targets 
@@ -209,9 +215,11 @@ if NoTarget && add_files
     files = dir([SimDataPath,'NoTarget/NoTarget*']);
     file_offset = length(files); % #files to keep  
 end
+
+fprintf('Simulate empty spectra...')
 parfor target = 1:NoTarget
     %Simulate Noise
-    [sb,~] = modelSignal([], [], fmcw);
+    [sb,~] = modelSignal([], [], [], fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     nRD = fmcw.RDmap(sbc);
@@ -224,6 +232,7 @@ parfor target = 1:NoTarget
     label = [[],[],[],[],[],[],[],[],[],[]];
     saveMat(nRD, label, 'NoTarget', target+file_offset, SimDataPath)
 end
+fprintf('Done!\n')
 
 toc
 
