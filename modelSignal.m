@@ -42,7 +42,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
             if targetID >= 3 % Vehicle
                 target.CarTarget.release();
-                target.restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
+                restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
                 [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
                 %boolidx = round(rand(1,size(post,2))-0.4);
                 %target = target.release(boolidx, fmcw.c0, fmcw.f0);
