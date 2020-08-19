@@ -45,7 +45,7 @@ if ~add_files && exist(SimDataPath(1:end-1),'dir')
 end
 
 file_offset = 0; %offset to keep existing files
-if add_files
+if add_files && file_offset == 0
     %Check for existing simulation data files
     files = dir([SimDataPath,'/Szenario*']);
     file_offset = length(files); % #files to keep
