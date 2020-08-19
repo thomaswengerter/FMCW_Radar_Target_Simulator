@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Jun 27 12:03:29 2020
-Write the simulated Radar data in COCO annotation format and grayscale JPG images.
 
 @author: Thomas
 """
@@ -33,6 +32,7 @@ def generate_annotation(TargetID, label, image_id, annotation_id):
     azi = label[2]
     heading = label[8]
     DOA = (azi+180+heading)%180
+    DOA = (azi+180+heading)%180
     if 'Ped' in TargetID:
         label[7] = 0.5
     thres = np.rad2deg(np.arctan(label[6]/(label[7]*2)))
@@ -43,25 +43,46 @@ def generate_annotation(TargetID, label, image_id, annotation_id):
     else:
         #Illuminated from sides
         dR = abs(label[6]/(2*np.cos(np.deg2rad(DOA-90))))
-    dV = label[1]/2
+    dV = abs(label[1]/2)
     
-    minR = label[0]-dR
-    maxR = label[0]+dR
-    minV = label[1]-dV
-    maxV = label[1]+dV
     
-    # Find simple contours, set bounding box coordinates 
+    outofRange = 0
+    minR = int((label[0]-dR)/fmcwdR)
+    maxR = int((label[0]+dR)/fmcwdR)
+    minV = int((label[1]-dV)/fmcwdV)
+    maxV = int((label[1]+dV)/fmcwdV)
+    if minR<0:
+        minR = 0
+    if minR>(fmcwK/2):
+        minR = int(fmcwK/2)-1
+        outofRange = 1
+    if maxR<0:
+        maxR = 1
+    if maxR>(fmcwK/2):
+        maxR = int(fmcwK/2)
+    if minV < -(fmcwL/2):
+        minV = -int(fmcwL/2)
+    if minV > (fmcwL/2):
+        minV = int(fmcwL/2)-1
+    if maxV < -(fmcwL/2):
+        maxV = -int(fmcwL/2)+1
+    if maxV > (fmcwL/2):
+        maxV = int(fmcwL/2)
+    topl = (int(fmcwL/2+minV),int(maxR))
+    botr = (int(fmcwL/2+maxV),int(minR))
+    
+    # Find simple contours, set bounding box (x,y) coordinates 
     segmentations = []
-    segmentations.append(int(minR/fmcwdR))
-    segmentations.append(int(minV/fmcwdV))
-    segmentations.append(int(maxR/fmcwdR))
-    segmentations.append(int(minV/fmcwdV))
-    segmentations.append(int(maxR/fmcwdR))
-    segmentations.append(int(maxV/fmcwdV))
-    segmentations.append(int(minR/fmcwdR))
-    segmentations.append(int(maxV/fmcwdV))
-    segmentations.append(int(minR/fmcwdR))
-    segmentations.append(int(minV/fmcwdV))
+    segmentations.append(topl[0]) #bottom left x
+    segmentations.append(botr[1]) #bottom left y
+    segmentations.append(topl[0]) #top left x
+    segmentations.append(topl[1]) #top left y
+    segmentations.append(botr[0]) #top right x
+    segmentations.append(topl[1]) #top right y
+    segmentations.append(botr[0]) #bottom left x
+    segmentations.append(botr[1]) #bottom right y
+    segmentations.append(topl[0]) #bottom left x
+    segmentations.append(botr[1]) #bottom left y
     
     
     # calculate the bounding box and area
@@ -73,23 +94,26 @@ def generate_annotation(TargetID, label, image_id, annotation_id):
     
     #Category label
     if 'Veh' in TargetID:
-        category = 1
+        category = 0
     elif 'Ped' in TargetID:
-        category = 2
-    elif 'Bic' in TargetID:
-        category = 3
-    else:
         category = 1
-
-    annotation = {
-        'segmentation': segmentations,
-        'iscrowd': is_crowd,
-        'image_id': image_id,
-        'category_id': category,
-        'id': annotation_id,
-        'bbox': bbox,
-        'area': area
-    }
+    elif 'Bic' in TargetID:
+        category = 2
+    else:
+        category = 0
+    
+    if not outofRange:
+        annotation = {
+            'segmentation': [segmentations],
+            'iscrowd': is_crowd,
+            'image_id': image_id,
+            'category_id': category,
+            'id': annotation_id,
+            'bbox': bbox,
+            'area': area
+        }
+    else:
+        annotation = {}
 
     return annotation
 
@@ -134,6 +158,8 @@ def plotBoundingBoxes(RD, labels):
     RDmap[RDmap > -120] = -120
     #Normalize and convert to grayscale
     RDmap = cv2.UMat((RDmap+185)/(185-120) *255)
+    #Flip ud for correct plot
+    #RDmap = cv2.flip(RDmap, 0)
     
     for Label in labels:
         #Plot Bounding Boxes
@@ -149,18 +175,35 @@ def plotBoundingBoxes(RD, labels):
             
         if DOA<thres or (DOA>180-thres):
             #Illuminated from front/back
-            dR = abs(label[7]/(2*np.cos(np.deg2rad(DOA))))
+            dR = abs(label[7]/(2*np.cos(np.deg2rad(DOA)))) #l/2/cos(DOA)
         else:
             #Illuminated from sides
             dR = abs(label[6]/(2*np.cos(np.deg2rad(DOA-90))))
-        dV = label[1]/2
-    
+        dV = abs(label[1]/2)
+        
         minR = int((label[0]-dR)/fmcwdR)
         maxR = int((label[0]+dR)/fmcwdR)
         minV = int((label[1]-dV)/fmcwdV)
         maxV = int((label[1]+dV)/fmcwdV)
+        if minR<0:
+            minR = 0
+        if minR>(fmcwK/2):
+            minR = int(fmcwK/2)-1
+        if maxR<0:
+            maxR = 1
+        if maxR>(fmcwK/2):
+            maxR = int(fmcwK/2)
+        if minV < -(fmcwL/2):
+            minV = -int(fmcwL/2)
+        if minV > (fmcwL/2):
+            minV = int(fmcwL/2)-1
+        if maxV < -(fmcwL/2):
+            maxV = -int(fmcwL/2)+1
+        if maxV > (fmcwL/2):
+            maxV = int(fmcwL/2)
         topl = (int(fmcwL/2+minV),int(maxR))
         botr = (int(fmcwL/2+maxV),int(minR))
+        
         
         if 'Veh' in TargetID:
             color = [0,255,255] #green
@@ -240,7 +283,8 @@ def writeJSONfile(SimDataPath, writeJPGs, trainvalname, drawBoxes):
     annotations = []
     for szenario in range(1,NumSzenarios+1):
         NumMeas = len(os.listdir(SimDataPath+ 'Szenario'+ str(szenario)+ '/'))/2
-        for meas in range(int(NumMeas)):
+        for meas in range(1,30):
+        #for meas in range(1,1+int(NumMeas)):
             # IMAGE
             image_id += 1
             Labels = scipy.io.loadmat(SimDataPath+ 'Szenario'+ str(szenario)+ '/'+ 'Szenario'+ str(szenario)+ '_Label_'+str(meas)+'.mat')
@@ -252,8 +296,8 @@ def writeJSONfile(SimDataPath, writeJPGs, trainvalname, drawBoxes):
                 'license': 1,
                 'file_name': filename,
                 'coco_url': 'https://github.com/thomaswengerter',
-                'height': 160,
-                'width': 256,
+                'height': 160, #160
+                'width': 256, #256
                 'date_captured': '21/06/2020',
                 'flickr_url': 'https://github.com/thomaswengerter',
                 'id': image_id
@@ -265,7 +309,9 @@ def writeJSONfile(SimDataPath, writeJPGs, trainvalname, drawBoxes):
                 TargetID = str(np.squeeze(Label[0]))
                 label = np.squeeze(Label[1])
                 annotation = generate_annotation(TargetID, label, image_id, annotation_id)
-                annotations.append(annotation) # collect annotations in long list
+                if annotation != {}:
+                    annotations.append(annotation) # collect annotations in long list
+            
             
             #DEBUG
             if drawBoxes:
@@ -276,15 +322,15 @@ def writeJSONfile(SimDataPath, writeJPGs, trainvalname, drawBoxes):
     # CATEGORIES
     categories = []
     category = {'supercategory': 'Road Users',
-                'id': 1,
+                'id': 0,
                 'name': 'Vehicle'}
     categories.append(category)
     category = {'supercategory': 'Road Users',
-                'id': 2,
+                'id': 1,
                 'name': 'Pedestrian'}
     categories.append(category)
     category = {'supercategory': 'Road Users',
-                'id': 3,
+                'id': 2,
                 'name': 'Bicycle'}
     categories.append(category)
     
@@ -305,27 +351,26 @@ def writeJSONfile(SimDataPath, writeJPGs, trainvalname, drawBoxes):
     print('Writing JSON file complete!')
     if writeJPGs:
         print('Writing JPG images complete!')
-    print('Generated '+ str(annotation_id)+ ' annotations for '+ str(image_id)+ ' radar szenarios.')
+    print('Generated '+ str(annotation_id)+ ' annotations for '+ str(image_id)+ ' RD images.')
     return
   
     
 
 # MAIN     
 
-SimDataPath = './SimulationDataTrain/'
+SimDataPath = './SimulationData_Szenarios_Test/'
 trainvalname = 'train2017'
 
 writeJPGs = True
-drawBoxes = False
+drawBoxes = True
 
 if not os.path.exists('./COCO'):
     stat = os.mkdir('./COCO')
     stat = os.mkdir('./COCO/annotations')
     
-if writeJPGs and not os.path.exists('./COCO/images'):
+if writeJPGs and not os.path.exists('./COCO/images/'):
     stat = os.mkdir('./COCO/images')
-    stat = os.mkdir('./COCO/images/'+trainvalname)
+stat = os.mkdir('./COCO/images/'+trainvalname)
 
-    
 writeJSONfile(SimDataPath, writeJPGs, trainvalname, drawBoxes)
 
