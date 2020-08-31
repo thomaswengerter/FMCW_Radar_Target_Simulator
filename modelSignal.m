@@ -42,7 +42,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
             if targetID >= 3 % Vehicle
                 target.CarTarget.release();
-                restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
+                target = restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
                 [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
                 %boolidx = round(rand(1,size(post,2))-0.4);
                 %target = target.release(boolidx, fmcw.c0, fmcw.f0);
@@ -93,7 +93,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                     end
                 end
                 % Filter covered Scatterers
-                if sum(CoveredFilter)>0
+                if sum(CoveredFilter, 'all')>0
                     obstruction = 1; % some Target points are obstructed
                     if sum(CoveredFilter) == length(post)
                         obstruction = 4; % all points hidden
