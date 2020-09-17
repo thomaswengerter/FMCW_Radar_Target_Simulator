@@ -5,7 +5,7 @@ classdef Car
     %   Doppler), angular positions of target.
     
     properties
-        plotContour = false; %bool: set to true to see scattering points
+        plotContour = true; %bool: set to true to see scattering points
         
         ID = [];
         typeNr = [];
@@ -55,9 +55,9 @@ classdef Car
                 obj.Height = 1.5; %height of vehicle
                 obj.heightAxis = 0.3; %distance from car underbody to ground
                 obj.cornerRadius = 0.8; %radius of contour corners
-                %obj.RCS = [10, 7, 6, 5, 4, 4, 3, 2, 5, 20, 5, 0, 0, 0, 1, 3, 5, 10, 15]; %measured RCS in dBsm azi= [0:180]
-                obj.RCS = mean([-1, 4,-3,-8,-12,-2, -5,-2,-6,-4,+7,+5, -2,-5,-4,-11,-9,+3, -3; ...
-                           fliplr([-3,-7,-12,-8,-6,-4, -12,-5,-7,+1,-1,+5, -9,-10,-5,-2,-5,0, -2])], 1); % [Abadpour] 
+                obj.RCS = [10, 7, 6, 5, 4, 4, 3, 2, 5, 20, 5, 0, 0, 0, 1, 3, 5, 10, 15]; %measured RCS in dBsm azi= [0:180]
+                %obj.RCS = mean([-1, 4,-3,-8,-12,-2, -5,-2,-6,-4,+7,+5, -2,-5,-4,-11,-9,+3, -3; ...
+                           %fliplr([-3,-7,-12,-8,-6,-4, -12,-5,-7,+1,-1,+5, -9,-10,-5,-2,-5,0, -2])], 1); % [Abadpour] 
                 obj.rTire = 0.3; %radius of a tire
             elseif typeNr == 1
                 %Jeep/Transporter
@@ -67,9 +67,9 @@ classdef Car
                 obj.Height = 2.1; %height of vehicle
                 obj.heightAxis = 0.375; %distance from car underbody to ground
                 obj.cornerRadius = 0.7; %radius of contour corners
-                %obj.RCS = [10, 7, 6, 5, 4, 4, 3, 2, 5, 20, 5, 0, 0, 0, 1, 3, 5, 10, 15]; %measured RCS in dBsm azi= [0:180]
-                obj.RCS = 4+ mean([-1, 4,-3,-8,-12,-2, -5,-2,-6,-4,+7,+5, -2,-5,-4,-11,-9,+3, -3; ...
-                           fliplr([-3,-7,-12,-8,-6,-4, -12,-5,-7,+1,-1,+5, -9,-10,-5,-2,-5,0, -2])], 1); % [Abadpour] 
+                obj.RCS = 4+ [10, 7, 6, 5, 4, 4, 3, 2, 5, 20, 5, 0, 0, 0, 1, 3, 5, 10, 15]; %measured RCS in dBsm azi= [0:180]
+                %obj.RCS = 4+ mean([-1, 4,-3,-8,-12,-2, -5,-2,-6,-4,+7,+5, -2,-5,-4,-11,-9,+3, -3; ...
+                           %fliplr([-3,-7,-12,-8,-6,-4, -12,-5,-7,+1,-1,+5, -9,-10,-5,-2,-5,0, -2])], 1); % [Abadpour] 
                 obj.rTire = 0.375; %radius of a tire
             else
                 error('Specified car type Nr. %i does not exist!',typeNr)
@@ -525,7 +525,7 @@ classdef Car
                     
                     hittingAngle = abs(obj.normAngle(wDOA(i)-WheelCenter(i,3))); %hitting angle at Contour Point
                     RCSy = ones(size(yi));
-                    RCSy(abs(yi)<obj.rTire) = (obj.rTire-abs(yi(abs(yi)<obj.rTire)))/obj.rTire; %RCS relative to reflection Position inside tire
+                    RCSy(abs(yi)<obj.rTire) = sin(acos(yi(abs(yi)<=obj.rTire)/obj.rTire)); %RCS relative to reflection Position inside tire
                     hiddenFactor = 1;
                     relRCS = (1-2*hittingAngle/180).* RCSy.* hiddenFactor;
                     
