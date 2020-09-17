@@ -50,14 +50,14 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 %velt(:,boolidx>0) = [];
                 %axt(:,:,boolidx>0) = [];
             elseif targetID == 2 % Bicycle
-                target.release();
+                %target.release();
                 [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move bike
                 % Reduce amount of scatterers randomly
                 %boolidx = round(rand(1,size(post,2))+0.4);
                 %post(:,boolidx>0) = [];
                 %velt(:,boolidx>0) = [];
             else %Pedestrian
-                target.release()
+                %target.release()
                 [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move ped
                 %boolidx = round(rand(1,size(post,2)));
                 %post(:,boolidx>0) = [];
@@ -93,6 +93,8 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                     end
                 end
                 % Filter covered Scatterers
+                CoveredFilter = zeros(size(CoveredFilter));
+                CoveredFilter(1,1) = 1;
                 if sum(CoveredFilter, 'all')>0
                     obstruction = 1; % some Target points are obstructed
                     if sum(CoveredFilter) == length(post)
