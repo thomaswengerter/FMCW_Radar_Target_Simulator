@@ -50,8 +50,11 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 %velt(:,boolidx>0) = [];
                 %axt(:,:,boolidx>0) = [];
             elseif targetID == 2 % Bicycle
+                target.BicyclistTarget.release();
+                target = restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
+                [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move bike
                 %target.release();
-                [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move bike
+                %[post,velt,axt] = move(target,tsamp,target.InitialHeading); % move bike
                 % Reduce amount of scatterers randomly
                 %boolidx = round(rand(1,size(post,2))+0.4);
                 %post(:,boolidx>0) = [];
@@ -112,6 +115,10 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                     elseif targetID == 2 % Bicycle
                         post(:,CoveredFilter>=1) = [];
                         velt(:,CoveredFilter>=1) = [];
+                        axt(:,:,CoveredFilter>=1) = [];
+                        target = RemoveHiddenScatterers(target, CoveredFilter, fmcw.c0, fmcw.f0);
+%                         post(:,CoveredFilter>=1) = [];
+%                         velt(:,CoveredFilter>=1) = [];
                     else % Pedestrian
                         % Does not work for backscatterPedestrian Object
                         %post(:,CoveredFilter>=1) = [];
@@ -143,7 +150,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 end
 
                 % TODO: Check why mangle required for other targets????
-                if targetID >= 3
+                if targetID >= 2
                     angle(angle>180) = angle(angle>180)-360;
                     xRX(:,chirp,:) = fmcw.MSrcvx(collectPlaneWave(fmcw.MSRXarray, RXsig, angle, fmcw.f0, fmcw.c0)); 
                 else

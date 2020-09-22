@@ -35,7 +35,7 @@ classdef FMCWradar
         dynamicNoise = 10; %dB, +/- NoiseFloor
         backscatterStatClutter = false;
         numStatTargets = 30; % Rayleigh Mean for the number of static clutter targets
-        dBoffset = 0; % offset for RD map plot
+        dBoffset = 40; % offset for RD map plot
         
         %Initialized in function:   init_RDmap(obj)
         chirpInterval = [];

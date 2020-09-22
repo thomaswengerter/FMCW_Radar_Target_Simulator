@@ -21,8 +21,8 @@ global c_0;
 c_0 = 299792458;
 
 plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
-Szenarios = 1; % SET NUMBER OF SZENARIOS
-duration = 0.03; % SET DURATION OF A SZENARIO (sec)
+Szenarios = 100; % SET NUMBER OF SZENARIOS
+duration = 1; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
 
 %Generate Radar Object
 fmcw = FMCWradar;
@@ -57,13 +57,13 @@ for meas = 1:Szenarios
     fprintf('Simulate Szenario %i/%i...\n', meas, Szenarios)
     %% Targets in this Szenario
     % Select random number of targets in this szenario
-
-    Pedestrians = floor(2.5*rand());
-    Pedestrians = 1;
-    Bicycles = floor(1.5*rand());
-    Bicycles = 0;
-    Cars = floor(3*rand());
-    Cars = 1;
+    checksum = 0;
+    while checksum == 0
+        Pedestrians = floor(2.3*rand());
+        Bicycles = floor(2.3*rand());
+        Cars = floor(2.3*rand());
+        checksum = Pedestrians+Bicycles+Cars;
+    end
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
     %Labels = {}; %Collect all Labels in struct
@@ -74,14 +74,17 @@ for meas = 1:Szenarios
         Tidx = Tidx+1;
         ped = backscatterPedestrian;
         ped.Height = 1+rand()*1.3; % [1.0m, 2.3m]
-        ped.WalkingSpeed = rand()* 1.4*ped.Height; %  
+        ped.WalkingSpeed = rand()* 1.4*ped.Height; % 
         ped.OperatingFrequency = fmcw.f0;
         ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
-        randposx = fmcw.rangeBins(end)*rand();
-        randposy = randposx* 2* (rand()-0.5);
+        randrange = rand()*0.9*fmcw.rangeBins(end);
+        randazi = (rand()-0.5)*90;
+        randposx = cosd(randazi)*randrange;
+        randposy = sind(randazi)*randrange;
         ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
-        ped.InitialPosition = [3; 0; 0];
+        %ped.InitialPosition = [5; 0; 0];
         heading = rand()*360-180;
+        %heading = 0;
         ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
 
         %Ground Truth
@@ -103,37 +106,72 @@ for meas = 1:Szenarios
     %% Bycicle Traget
     for target = 1:Bicycles
         Tidx = Tidx+1;
-        bike = backscatterBicyclist;
-        Spokes = [20, 24, 28, 32, 36];
-        bike.NumWheelSpokes = Spokes(ceil(rand()*length(Spokes)));
-        bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
-        bike.OperatingFrequency = fmcw.f0;
-        randposx = fmcw.rangeBins(end)*rand();
-        randposy = randposx* 2*(rand()-0.5);
-        bike.InitialPosition = [randposx;randposy;0];
+        bike = Bicyclist;
+        bike = bike.initBicycle(floor(1.999* rand()));
+        randrange = rand()*0.9*fmcw.rangeBins(end);
+        randazi = (rand()-0.5)*90;
+        randposx = cosd(randazi)*randrange;
+        randposy = sind(randazi)*randrange;
+        randvel = rand()*10; %10m/s top speed
         heading = rand()*360-180;
-        bike.InitialHeading = heading; %in degree, heading along x-axis
-        randspeed = rand()*10; %max 10m/s
-        bike.Speed = randspeed; %m/s
-        bike.Coast = false; %Padeling movements?
-        bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
-        % bike.AzimutAngles = fmcw.azimut; %default 77GHz cyclist <- use default
-        % bike.ElevationAngles = fmcw.elevation; %default 77GHz cyclist <- use default
-        % bike.RCSPattern = fmcw.RCS; %default 77GHz cyclist <- use default
+        bike.xPos = randposx; % x dist from radar
+        bike.yPos = randposy; % y dist from radar
+        bike.vel = randvel; %m/s
+        bike.heading = heading; %degrees, from x-axis
 
-        %Ground Truth
-        %targetR: Range (radial dist. from radar to target)
-        %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
-        targetR = sqrt(bike.InitialPosition(1)^2+bike.InitialPosition(2)^2);
-        targetV = +bike.Speed*cos(bike.InitialHeading/360*2*pi);
-        azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
+
+        % Calculate label
+        relangle = atand(bike.yPos/bike.xPos)-bike.heading; %angle between heading and radial velocity
+        targetR = sqrt(bike.xPos^2+bike.yPos^2); %radial distance
+        targetV = cosd(relangle)*bike.vel; %radial velocity
+        azi = atand(bike.yPos/bike.xPos);
+
+        bike = bike.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
 
         %Label output and save
-        %label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading, 0];
-        name = ['Bicycle', num2str(target)];
+        %label =  [targetR, targetV, azi, fmcw.egoMotion, bike.xPos, bike.yPos, bike.width, bike.length, heading, 0];
+        name = ['Bicycle', num2str(bike.typeNr)];
         Targets{Tidx,1} = name;
         Targets{Tidx,2} = bike;
     end
+
+%% Bicycle Target with MATLAB phased Toolbox
+%     for target = 1:Bicycles
+%         Tidx = Tidx+1;
+%         bike = backscatterBicyclist;
+%         Spokes = [20, 24, 28, 32, 36];
+%         bike.NumWheelSpokes = Spokes(ceil(rand()*length(Spokes)));
+%         bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
+%         bike.OperatingFrequency = fmcw.f0;
+%         randposx = fmcw.rangeBins(end)*rand();
+%         randposy = randposx* 2*(rand()-0.5);
+%         bike.InitialPosition = [randposx;randposy;0];
+%         bike.InitialPosition = [4;2;0];
+%         heading = rand()*360-180;
+%         heading = -90;
+%         bike.InitialHeading = heading; %in degree, heading along x-axis
+%         randspeed = rand()*10; %max 10m/s
+%         randspeed = 6;
+%         bike.Speed = randspeed; %m/s
+%         bike.Coast = false; %Padeling movements?
+%         bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
+%         % bike.AzimutAngles = fmcw.azimut; %default 77GHz cyclist <- use default
+%         % bike.ElevationAngles = fmcw.elevation; %default 77GHz cyclist <- use default
+%         % bike.RCSPattern = fmcw.RCS; %default 77GHz cyclist <- use default
+% 
+%         %Ground Truth
+%         %targetR: Range (radial dist. from radar to target)
+%         %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
+%         targetR = sqrt(bike.InitialPosition(1)^2+bike.InitialPosition(2)^2);
+%         targetV = +bike.Speed*cos(bike.InitialHeading/360*2*pi);
+%         azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
+% 
+%         %Label output and save
+%         %label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading, 0];
+%         name = ['Bicycle', num2str(target)];
+%         Targets{Tidx,1} = name;
+%         Targets{Tidx,2} = bike;
+%     end
 
 
     %% Car target
@@ -141,12 +179,14 @@ for meas = 1:Szenarios
         Tidx = Tidx+1;
         car = Car;
         car = car.initCar(floor(1.999* rand()));
-        randxpos = rand()*fmcw.rangeBins(end);
-        randypos = randxpos*2*(rand()-0.5);
+        randrange = rand()*0.9*fmcw.rangeBins(end);
+        randazi = (rand()-0.5)*90;
+        randposx = cosd(randazi)*randrange;
+        randposy = sind(randazi)*randrange;
         randvel = rand() * fmcw.velBins(end);
         heading = rand()*360-180;
-        car.xPos = 7; % x dist from radar
-        car.yPos = 0; % y dist from radar
+        car.xPos = randposx; % x dist from radar
+        car.yPos = randposy; % y dist from radar
         car.vel = randvel; %m/s
         car.heading = heading; %degrees, from x-axis
 
@@ -171,13 +211,13 @@ for meas = 1:Szenarios
     Traj = init_TrajectoryPlanner(Traj, tstep, duration, Targets, fmcw);
     egoMotion = fmcw.egoMotion;
     
-    % For each measurement step in this scenario TIME: 10 SECONDS
-    for tidx = 1:floor(duration/tstep)
+    % ParFor each measurement step in this scenario TIME: 2 SECONDS
+    parfor tidx = 1:floor(duration/tstep)
         %% Move Targets
         [MovedTargets, Label] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
         sz = size(MovedTargets);        
         for i = 1:sz(1)
-            if strcmp(MovedTargets{i,1}(1:4), 'Vehi')
+            if strcmp(MovedTargets{i,1}(1:4), 'Vehi') || strcmp(MovedTargets{i,1}(1:3), 'Bic')
                 MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw); %update car reflection point positions
             end
         end
@@ -196,7 +236,7 @@ for meas = 1:Szenarios
             elseif strcmp(MovedTargets{i,1}(1:4),'Bicy')
                 targetID = 2;
             else % strcmp(MovedTargets{i,1}(1:4), 'Vehi')
-                targetID = 3+Target.typeNr;
+                targetID = 3;
             end
             %Model Radar Signal for selected Target
             [sbTarget, obstruction] = modelSignal(Target, targetID, map, fmcw);

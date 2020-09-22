@@ -15,9 +15,9 @@ c_0 = 299792458;
 plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
 
 % Select number of target samples
-Pedestrians = 0;
+Pedestrians = 1;
 Bicycles = 0;
-Cars = 1;
+Cars = 0;
 NoTarget = 0; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
@@ -50,18 +50,20 @@ end
 fprintf('Simulate Pedestrians...\n ')
 parfor target = 1:Pedestrians
     ped = backscatterPedestrian;
-    ped.Height = 1+rand(); % [1m,2m]
+    ped.Height = 1+rand()*1.3; % [1.0m, 2.3m]
     ped.WalkingSpeed = rand()* 1.4*ped.Height; % 
     ped.OperatingFrequency = fmcw.f0;
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
-    randposx = fmcw.rangeBins(end-30)*rand();
-    randposy = randposx* (rand()-0.5);
+    randrange = rand()*0.9*fmcw.rangeBins(end);
+    randazi = (rand()-0.5)*90;
+    randposx = cosd(randazi)*randrange;
+    randposy = sind(randazi)*randrange;
     ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
-    %ped.InitialPosition = [12; -2; 0];
+    %ped.InitialPosition = [5; 0; 0];
     heading = rand()*360-180;
-    %heading = 10;
+    %heading = 0;
     ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
-    
+
     %Ground Truth
     %targetR: Range (radial dist. from radar to target)
     %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
@@ -94,24 +96,38 @@ end
 
 fprintf('Simulate Bicycles...\n')
 parfor target = 1:Bicycles
-    bike = backscatterBicyclist;
-    Spokes = [20, 24, 28, 32, 36];
-    bike.NumWheelSpokes = Spokes(ceil(rand()*length(Spokes)));
-    bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
-    bike.OperatingFrequency = fmcw.f0;
-    randposx = fmcw.rangeBins(end)*rand();
-    randposy = randposx* (rand()-0.5);
-    bike.InitialPosition = [randposx;randposy;0];
+    bike = Bicyclist;
+    bike = bike.initBicycle(floor(1.999* rand()));
+    randrange = rand()*0.9*fmcw.rangeBins(end);
+    randazi = (rand()-0.5)*90;
+    randposx = cosd(randazi)*randrange;
+    randposy = sind(randazi)*randrange;
+    randvel = rand()*10; %10m/s top speed
     heading = rand()*360-180;
-    bike.InitialHeading = heading; %in degree, heading along x-axis
-    randspeed = rand()*10; %max 10m/s
-    bike.Speed = randspeed; %m/s
-    bike.Coast = false; %Padeling movements?
-    bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
-    % bike.AzimutAngles = fmcw.azimut; %default 77GHz cyclist <- use default
-    % bike.ElevationAngles = fmcw.elevation; %default 77GHz cyclist <- use default
-    % bike.RCSPattern = fmcw.RCS; %default 77GHz cyclist <- use default
-    
+    bike.xPos = randposx; % x dist from radar
+    bike.yPos = randposy; % y dist from radar
+    bike.vel = randvel; %m/s
+    bike.heading = heading; %degrees, from x-axis
+
+    % MATLAB phased Toolbox Bicyclist
+%     bike = backscatterBicyclist;
+%     Spokes = [20, 24, 28, 32, 36];
+%     bike.NumWheelSpokes = Spokes(ceil(rand()*length(Spokes)));
+%     bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
+%     bike.OperatingFrequency = fmcw.f0;
+%     randposx = fmcw.rangeBins(end)*rand();
+%     randposy = randposx* (rand()-0.5);
+%     bike.InitialPosition = [randposx;randposy;0];
+%     heading = rand()*360-180;
+%     bike.InitialHeading = heading; %in degree, heading along x-axis
+%     randspeed = rand()*10; %max 10m/s
+%     bike.Speed = randspeed; %m/s
+%     bike.Coast = false; %Padeling movements?
+%     bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
+%     % bike.AzimutAngles = fmcw.azimut; %default 77GHz cyclist <- use default
+%     % bike.ElevationAngles = fmcw.elevation; %default 77GHz cyclist <- use default
+%     % bike.RCSPattern = fmcw.RCS; %default 77GHz cyclist <- use default
+%     
     %Ground Truth
     %targetR: Range (radial dist. from radar to target)
     %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
@@ -145,19 +161,16 @@ end
 fprintf('Simulate Cars...')
 parfor target = 1:Cars
     car = Car;
-    car = car.initCar(0);
-    randxpos = rand()*fmcw.rangeBins(end);
-    randypos = randxpos*(rand()-0.5);
-    randvel = fmcw.velBins(end)- raylrnd(1)*fmcw.velBins(end)/3; %fmcw.velBins(end)*(rand()-0.5)*2;
+    car = car.initCar(floor(1.999* rand()));
+    randrange = rand()*0.9*fmcw.rangeBins(end);
+    randazi = (rand()-0.5)*90;
+    randposx = cosd(randazi)*randrange;
+    randposy = sind(randazi)*randrange;
+    randvel = rand() * fmcw.velBins(end);
     heading = rand()*360-180;
-    %heading = randn()* 20;
-    %heading = 10;
-    car.xPos = randxpos; % x dist from radar
-    %car.xPos = 13;
-    car.yPos = randypos; % y dist from radar
-    %car.yPos = -2;
+    car.xPos = randposx; % x dist from radar
+    car.yPos = randposy; % y dist from radar
     car.vel = randvel; %m/s
-    %car.vel = 10;
     car.heading = heading; %degrees, from x-axis
     
     

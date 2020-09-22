@@ -10,7 +10,7 @@ classdef TrajectoryPlanner
         heading = [];       %heading
         trajectory = [];    %position
         velocity = [];      %velocity
-        plotTraj = false;    %bool for live plot
+        plotTraj = true;    %bool for live plot
     end
     
     methods
@@ -103,7 +103,7 @@ classdef TrajectoryPlanner
                 elseif strcmp(Targets{i,1}(1:3),'Bic')
                     %% Plan Bicycle
                     mv = 10; %10m/s max velocity
-                    v(i,:) = ones(1,size(v,2))* Targets{i,2}.Speed;
+                    v(i,:) = ones(1,size(v,2))* Targets{i,2}.vel;
                     eventduration = 4; % acceleration of a bicycle takes ~6s
                     %Bicycle acceleration
                     events = floor(rand()*Szduration/eventduration+0.3); %number of events possible in Szene
@@ -215,8 +215,10 @@ classdef TrajectoryPlanner
                     mapPos(i,1,:) = [Targets{i,2}.xPos, Targets{i,2}.yPos];
                     dir(i,:) = Targets{i,2}.heading + dheading(i,1);
                 elseif strcmp(Targets{i,1}(1:3),'Bic')
-                    mapPos(i,1,:) = Targets{i,2}.InitialPosition(1:2);
-                    dir(i,:) = Targets{i,2}.InitialHeading + dheading(i,1);
+                    mapPos(i,1,:) = [Targets{i,2}.xPos, Targets{i,2}.yPos];
+                    dir(i,:) = Targets{i,2}.heading + dheading(i,1);
+%                     mapPos(i,1,:) = Targets{i,2}.InitialPosition(1:2);
+%                     dir(i,:) = Targets{i,2}.InitialHeading + dheading(i,1);
                 elseif strcmp(Targets{i,1}(1:3), 'Ped')
                     mapPos(i,1,:) = Targets{i,2}.InitialPosition(1:2);
                     dir(i,:) = Targets{i,2}.InitialHeading + dheading(i,1);
@@ -301,19 +303,33 @@ classdef TrajectoryPlanner
                     
                     
                 elseif strcmp(Targets{i,1}(1:3),'Bic')
-                    Targets{i,2}.InitialPosition(1:2) = obj.trajectory(i,t,:); 
-                    Targets{i,2}.InitialHeading = obj.heading(i,t);
-                    Targets{i,2}.Speed = obj.velocity(i,t);
+                    Targets{i,2}.xPos = obj.trajectory(i,t,1);
+                    Targets{i,2}.yPos = obj.trajectory(i,t,2);
+                    Targets{i,2}.heading = obj.heading(i,t);
+                    Targets{i,2}.vel = obj.velocity(i,t);
+                    
                     
                     % Calculate label
                     Labels{i,1} = Targets{i,1};
-                    %targetR: Range (radial dist. from radar to target)
-                    %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
-                    targetR = sqrt(Targets{i,2}.InitialPosition(1)^2+Targets{i,2}.InitialPosition(2)^2);
-                    targetV = +Targets{i,2}.Speed*cos(Targets{i,2}.InitialHeading/360*2*pi);
-                    azi = atand(Targets{i,2}.InitialPosition(2)/Targets{i,2}.InitialPosition(1));
-                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.InitialPosition(1), Targets{i,2}.InitialPosition(2), 0.65, 2, Targets{i,2}.InitialHeading, 0];
+                    relangle = atand(Targets{i,2}.yPos/Targets{i,2}.xPos)-Targets{i,2}.heading; %angle between heading and radial velocity
+                    targetR = sqrt(Targets{i,2}.xPos^2+Targets{i,2}.yPos^2); %radial distance
+                    targetV = cosd(relangle)*Targets{i,2}.vel; %radial velocity
+                    azi = atand(Targets{i,2}.yPos/Targets{i,2}.xPos);
+                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.xPos, Targets{i,2}.yPos, Targets{i,2}.width, Targets{i,2}.length, Targets{i,2}.InitialHeading, 0];
                 
+%                     Targets{i,2}.InitialPosition(1:2) = obj.trajectory(i,t,:); 
+%                     Targets{i,2}.InitialHeading = obj.heading(i,t);
+%                     Targets{i,2}.Speed = obj.velocity(i,t);
+%                     
+%                     % Calculate label
+%                     Labels{i,1} = Targets{i,1};
+%                     %targetR: Range (radial dist. from radar to target)
+%                     %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
+%                     targetR = sqrt(Targets{i,2}.InitialPosition(1)^2+Targets{i,2}.InitialPosition(2)^2);
+%                     targetV = +Targets{i,2}.Speed*cos(Targets{i,2}.InitialHeading/360*2*pi);
+%                     azi = atand(Targets{i,2}.InitialPosition(2)/Targets{i,2}.InitialPosition(1));
+%                     Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.InitialPosition(1), Targets{i,2}.InitialPosition(2), 0.65, 2, Targets{i,2}.InitialHeading, 0];
+%                 
                 elseif strcmp(Targets{i,1}(1:3),'Veh')
                     Targets{i,2}.xPos = obj.trajectory(i,t,1);
                     Targets{i,2}.yPos = obj.trajectory(i,t,2);

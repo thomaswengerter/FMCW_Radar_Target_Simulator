@@ -512,16 +512,16 @@ classdef Car
                     vi(yi>(obj.rTire)) = 0; % static tire case reflection
                     % tire reflection with rotational velocity
                     %velBins = (-obj.vel:fmcw.dV:obj.vel);
-                    vi(yi<=(obj.rTire)) = obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire.* (rand(sum(yi<=(obj.rTire)),1)-0.5)*2;
+                    vi(abs(yi)<=(obj.rTire)) = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire.* (rand(sum(abs(yi)<=(obj.rTire)),1)-0.5)*2;
                     
                     
                     % Acceleration
-                    vrad = obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire;
-                    z = vi(yi<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(yi<=(obj.rTire)).^2)./ (vrad);
-                    r = sqrt(z.^2+yi(yi<=(obj.rTire)).^2);
-                    t = acos(vi(yi<=(obj.rTire))./(vrad)).* r./(vrad);
+                    vrad = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire;
+                    z = vi(abs(yi)<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(abs(yi)<=(obj.rTire)).^2)./ (vrad);
+                    r = sqrt(z.^2+yi(abs(yi)<=(obj.rTire)).^2);
+                    t = acos(vi(abs(yi)<=(obj.rTire))./(vrad)).* r./(vrad);
                     tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
-                    wheelAcceleration(i,yi<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
+                    wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
                     
                     hittingAngle = abs(obj.normAngle(wDOA(i)-WheelCenter(i,3))); %hitting angle at Contour Point
                     RCSy = ones(size(yi));
@@ -554,15 +554,15 @@ classdef Car
                     vi(yi>(obj.rTire)) = 0; % static tire case reflection
                     % tire reflection with rotational velocity
                     %velBins = (-obj.vel:fmcw.dV:0);
-                    vi(yi<=(obj.rTire)) = -obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire.* rand(sum(yi<=(obj.rTire)),1);
+                    vi(abs(yi)<=(obj.rTire)) = -obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire.* rand(sum(abs(yi)<=(obj.rTire)),1);
 
                     % Acceleration
-                    vrad = obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire;
-                    z = vi(yi<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(yi<=(obj.rTire)).^2)./ (vrad);
-                    r = sqrt(z.^2+yi(yi<=(obj.rTire)).^2);
-                    t = acos(vi(yi<=(obj.rTire))./(vrad)).* r./(vrad);
+                    vrad = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire;
+                    z = vi(abs(yi)<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(abs(yi)<=(obj.rTire)).^2)./ (vrad);
+                    r = sqrt(z.^2+yi(abs(yi)<=(obj.rTire)).^2);
+                    t = acos(vi(abs(yi)<=(obj.rTire))./(vrad)).* r./(vrad);
                     tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
-                    wheelAcceleration(i,yi<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
+                    wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
                     
                     
                     hittingAngle = abs(obj.normAngle(wDOA(i)-180-WheelCenter(i,3))); %hitting angle at back of wheel
@@ -596,15 +596,15 @@ classdef Car
                     vi(yi<(obj.rTire)) = 0; % static tire case reflection
                     % tire reflection with rotational velocity
                     %velBins = (-obj.vel:fmcw.dV:0);
-                    vi(yi<=(obj.rTire)) = -obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire.* rand(sum(yi<=obj.rTire),1);
+                    vi(abs(yi)<=(obj.rTire)) = -obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire.* rand(sum(abs(yi)<=obj.rTire),1);
                     
                     % Acceleration
-                    vrad = obj.vel.* (obj.rTire-abs(yi(yi<=(obj.rTire))))./obj.rTire;
-                    z = vi(yi<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(yi<=(obj.rTire)).^2)./ (vrad);
-                    r = sqrt(z.^2+yi(yi<=(obj.rTire)).^2);
-                    t = acos(vi(yi<=(obj.rTire))./(vrad)).* r./(vrad);
+                    vrad = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire;
+                    z = vi(abs(yi)<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(abs(yi)<=(obj.rTire)).^2)./ (vrad);
+                    r = sqrt(z.^2+yi(abs(yi)<=(obj.rTire)).^2);
+                    t = acos(vi(abs(yi)<=(obj.rTire))./(vrad)).* r./(vrad);
                     tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
-                    wheelAcceleration(i,yi<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
+                    wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
                     
                     
                     hittingAngle = abs(mod(obj.normAngle(wDOA(i)-WheelCenter(i,3)),180)); %hitting angle in front/back of wheel

@@ -18,7 +18,12 @@ for i = 1:sz(1)
         [post,velt,axt] = move(target,fmcw.chirpInterval,target.InitialHeading);
         azi = atand(post(2,:)./post(1,:));
         aziCover = round(min(azi)): round(max(azi)); %target azi width
-        RidxCover = floor(min(sqrt(post(1,:).^2+post(2,:).^2))/fmcw.dR); %target min range
+        RidxCover = ceil(min(sqrt(post(1,:).^2+post(2,:).^2))/fmcw.dR); %target min range
+        if RidxCover<=0 && floor(max(sqrt(post(1,:).^2+post(2,:).^2))/fmcw.dR)<=0
+            RidxCover = length(fmcw.rangeBins)+1; %Target behind radar, no obstruction
+        elseif RidxCover<=0 && floor(max(sqrt(post(1,:).^2+post(2,:).^2))/fmcw.dR)>0
+            RidxCover = 1; %Target right in front of radar, obstruction
+        end
         heightCover = target.Height; %target height
         for a = aziCover
             for idx = RidxCover:length(fmcw.rangeBins)
