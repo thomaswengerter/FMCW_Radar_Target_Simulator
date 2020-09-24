@@ -1,22 +1,37 @@
 %% SIMULATE TARGET LIST
 % Function to start simulation for a list of targets generated from a time
-% sequence in a specific scenario.
+% sequence of measurements in a road scenario.
 % 
-% All targets are initialized randomly and collected in one struct Target.
-% Also the labels are stored in struct Label.
-% When all targets are positioned, the obstruction map is generated.
-% Finally, signals are generated in modelSignal for each target considering
-% the obstruction map.
+% I. All targets are initialized randomly and collected in one struct
+% 'Target'. Also the labels are stored in struct 'Label'.
 % 
+% II. For the 'duration' of the measurement, realistic trajectories for 
+% each individual target are planned in the 'TrajectoryPlanner'. 
+% 
+% III. In each measurement step, the current positions of the targets are 
+% read from the 'TrajectoryPlanner' object. When all targets are postioned 
+% accordingly, the 'obstructionMap' is generated for this measurement step.
+% 
+% IV. Finally, reflection signals are generated in 'modelSignal' for each 
+% target considering the 'obstructionMap'.  
+% 
+% V. Simulated Noise and Clutter are added. The RD map is calculated by
+% FFTs with Hanning Windowing in the 'RDmap()' function. Save Labels and
+% RD map in mat-file.
+% 
+% 
+% OUTPUTS:
 % Label Format:
 % {TargetID;  [targetR, targetV, azi, egoMotion, xPos, yPos, width, length,
 %               heading, obstruction]}
-% 
+% RD map:
+% [160, 256, 16] -> (Rangebins, Velbins, RXant*2)
+% RD spectrum in dB
 % -------------------------------------------------------------------------
 close all
 clear
 
-%% Target Simulation
+%% Target List Simulation
 global c_0;
 c_0 = 299792458;
 
@@ -24,16 +39,7 @@ plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
 Szenarios = 100; % SET NUMBER OF SZENARIOS
 duration = 1; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
 
-%Generate Radar Object
-fmcw = FMCWradar;
-fmcw = fmcw.init_RDmap();
-% Initialize FMCW radar object and environment
-fmcw = fmcw.generateChirpSequence(); %Generate chirp waveform, initialize fmcw.chirps
-fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.antPattern
-fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
-tstep = fmcw.chirpsCycle*fmcw.chirpInterval;
-
-% Set dictionary to save results
+%% Setup directories to save results
 SimDataPath = 'SimulationData/';
 add_files = false;
 if ~add_files && exist(SimDataPath(1:end-1),'dir')
@@ -51,11 +57,19 @@ if add_files && file_offset == 0
     file_offset = length(files); % #files to keep
 end
 
+%% Generate Radar Object
+fmcw = FMCWradar;
+fmcw = fmcw.init_RDmap();
+% Initialize FMCW radar object and environment
+fmcw = fmcw.generateChirpSequence(); %Generate chirp waveform, initialize fmcw.chirps
+fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.antPattern
+fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
+tstep = fmcw.chirpsCycle*fmcw.chirpInterval; %duration of one radar measurement cycle
 
 for meas = 1:Szenarios
     status = mkdir([SimDataPath, 'Szenario', num2str(meas+ file_offset)]);
     fprintf('Simulate Szenario %i/%i...\n', meas, Szenarios)
-    %% Targets in this Szenario
+    %% I. Initialize Targets in this Szenario
     % Select random number of targets in this szenario
     checksum = 0;
     while checksum == 0
@@ -64,12 +78,11 @@ for meas = 1:Szenarios
         Cars = floor(2.3*rand());
         checksum = Pedestrians+Bicycles+Cars;
     end
-    
-    % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
-    %Labels = {}; %Collect all Labels in struct
     Targets = cell(Pedestrians+Bicycles+Cars,2); %Collect all Targets in struct
     Tidx = 0;
-    %% Pedestrian Target
+    
+    
+    %% I.1 Pedestrian Target
     for target = 1:Pedestrians
         Tidx = Tidx+1;
         ped = backscatterPedestrian;
@@ -85,11 +98,11 @@ for meas = 1:Szenarios
         %ped.InitialPosition = [5; 0; 0];
         heading = rand()*360-180;
         %heading = 0;
-        ped.InitialHeading = heading; %in degree, heading along x from x=5 to x=7
+        ped.InitialHeading = heading; %in degree
 
         %Ground Truth
         %targetR: Range (radial dist. from radar to target)
-        %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
+        %targetV: radial Velocity <0 approaching, >0 moving away from radar
         targetR = sqrt(ped.InitialPosition(1)^2+ped.InitialPosition(2)^2);
         targetV = +ped.WalkingSpeed*cos(ped.InitialHeading/360*2*pi);
         azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
@@ -102,8 +115,7 @@ for meas = 1:Szenarios
     end
 
 
-
-    %% Bycicle Traget
+    %% I.2 Bycicle Traget
     for target = 1:Bicycles
         Tidx = Tidx+1;
         bike = Bicyclist;
@@ -174,7 +186,7 @@ for meas = 1:Szenarios
 %     end
 
 
-    %% Car target
+    %% I.3 Car target
     for target = 1:Cars
         Tidx = Tidx+1;
         car = Car;
@@ -206,14 +218,19 @@ for meas = 1:Szenarios
         Targets{Tidx,2} = car;
     end
     
-    %% Plan Trajectory of targets
+    
+    
+    %% II. Plan Trajectory of targets
     Traj = TrajectoryPlanner;
     Traj = init_TrajectoryPlanner(Traj, tstep, duration, Targets, fmcw);
     egoMotion = fmcw.egoMotion;
     
-    % ParFor each measurement step in this scenario TIME: 2 SECONDS
+    
+    % ParFor each measurement step in this scenario 
+    % total TIME: 'duration', measurement TIME: 'tstep'
     parfor tidx = 1:floor(duration/tstep)
-        %% Move Targets
+        %% III. Generate obstruction map for each chirp/time step
+        % Move Targets
         [MovedTargets, Label] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
         sz = size(MovedTargets);        
         for i = 1:sz(1)
@@ -222,12 +239,12 @@ for meas = 1:Szenarios
             end
         end
         
-        %% Generate obstruction map for each chirp/time step
+        % Generate ObstructionMap
         map = generateObstructionMap(MovedTargets, fmcw);
 
 
-        %% Simulate Baseband Signals
-        %for each target in Targets
+        %% IV. Simulate Baseband Signals
+        %Superpostion of simulated reflection signals in the baseband
         sb = zeros(fmcw.K, fmcw.L, fmcw.RXant); %empty Rx signal
         for i= 1:sz(1)
             Target = MovedTargets{i,2};
@@ -245,7 +262,7 @@ for meas = 1:Szenarios
             sb =  sb + sbTarget;
         end
 
-        % Add Noise and static Clutter to baseband signal
+        %% V. Add Noise and static Clutter to baseband signal
         sbn = fmcw.addGaussNoise(sb);
         sbc = fmcw.addStaticClutter(sbn);
         RD = fmcw.RDmap(sbc);
@@ -257,38 +274,5 @@ for meas = 1:Szenarios
         saveMat(RD, Label, ['Szenario', num2str(meas+file_offset)], tidx, SimDataPath)
     end
 end
+
 fprintf('Simulation completed.\n')
-
-%% Generate Sample Target List
-% Fields in Target struct:
-% CarXX:        [xPos, yPos, vel, heading, type]
-% PedestrianXX: [xPos, yPos, vel, heading]
-% BicycleXX:    [xPos, yPos, vel, heading]
-
-% TargetProperties = {};
-% TargetNames = {};
-
-% TargetNames{1} = 'Car';
-% TargetProperties{1} = [10, 3, 8, 160, 0];
-% TargetNames{2} = 'Pedestrian';
-% TargetProperties{2} = [3, -3, 2, 10];
-
-% Targets = cell2struct(TargetProperties, TargetNames, 2);
-% NoTargets = numel(fieldnames(Targets));
-
-
-% TargetLists = {};
-% % TargetList{MeasNr:, TargetType, TargetValues}
-% TargetLists{1,1,1} = 'Car';
-% TargetLists{1,1,2} = [10, 3, 8, 160, 0];
-% TargetLists{1,2,1} = 'Pedestrian';
-% TargetLists{1,2,2} = [3, -3, 2, 10];
-% 
-% TargetLists{2,1,1} = 'Car';
-% TargetLists{2,1,2} = [10, 3, 8, 160, 0];
-% TargetLists{2,2,1} = 'Pedestrian';
-% TargetLists{2,2,2} = [3, -3, 2, 10];
-% 
-% TargetLists{3,1,1} = 'Car';
-% TargetLists{3,1,2} = [10, 3, 8, 160, 0];
-
