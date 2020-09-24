@@ -320,11 +320,11 @@ classdef FMCWradar
 %                 end
 
             % 1st FFT for RANGE
-%             winK = repmat(hann(obj.K), [1,obj.L,obj.RXant]);
-%             scaWinK     = sum(winK(:, 1, 1));
-%             s_beat = cat(1,zeros(obj.K/2, obj.L, obj.RXant), s_beat .* winK, zeros(obj.K/2, obj.L, obj.RXant));
-%             SB = fft(ifftshift(s_beat,1) , obj.K, 1) /scaWinK; % *2/2048
-            SB = fft(s_beat,[], 1)/obj.K; %/length(s_beat(:,1)) FFT 1 of every column with K time samples
+            winK = repmat(hann(obj.K), [1,obj.L,obj.RXant]);
+            scaWinK     = sum(winK(:, 1, 1));
+            s_beat = cat(1,zeros(0, obj.L, obj.RXant), s_beat .* winK, zeros(0, obj.L, obj.RXant));
+            SB = fft(ifftshift(s_beat,1) , obj.K, 1) /scaWinK; % *2/2048
+%             SB = fft(s_beat,[], 1)/obj.K; %/length(s_beat(:,1)) FFT 1 of every column with K time samples
             SB = fftshift(SB,1);
             
             %Visualization Corrections
@@ -333,11 +333,11 @@ classdef FMCWradar
 
 
             % 2nd FFT for DOPPLER
-%             winL = repmat(hann(obj.L)', [obj.K/2, 1, obj.RXant]);
-%             scaWinL     = sum(winL(1,:,1));
-%             SB = cat(2, zeros(obj.K/2, obj.L/2, obj.RXant), SB .* winL, zeros(obj.K/2, obj.L/2, obj.RXant));
-%             SB = fft(ifftshift(SB,2), obj.L, 2)/scaWinL;
-            SB = fft(SB, [], 2) /obj.L; % /256  FFT 2 of every row with L chirps
+            winL = repmat(hann(obj.L)', [obj.K/2, 1, obj.RXant]);
+            scaWinL     = sum(winL(1,:,1));
+            SB = cat(2, zeros(obj.K/2, 0, obj.RXant), SB .* winL, zeros(obj.K/2, 0, obj.RXant));
+            SB = fft(ifftshift(SB,2), obj.L, 2)/scaWinL;
+%             SB = fft(SB, [], 2) /obj.L; % /256  FFT 2 of every row with L chirps
             SB = fftshift(SB,2);
 
             % OPTIONAL: RDmap preprocessing
@@ -381,8 +381,8 @@ classdef FMCWradar
                 y = obj.rangeBins(1:length(obj.rangeBins/2));
                 imagesc(x,y,rangeDoppler+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
                 set(gca,'YDir','normal')
-                xlabel('Velocity in m/s')
-                ylabel('Range in m')
+                xlabel('Velocity [m/s]')
+                ylabel('Range [m]')
                 colorbar
                 colormap jet
                 title(['Range-Doppler map of Backscattered Power in dB'])
@@ -405,10 +405,10 @@ classdef FMCWradar
                         fprintf('Simulation of Target starting at Range %.2f m and radial Velocity %.2f m/s.\n', ...
                         target(1), target(2))
                     end
-                    imagesc(x,y,RDmap_plt(:,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
+                    imagesc(x(6:end),y,RDmap_plt(6:end,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
                     set(gca,'YDir','normal')
-                    xlabel('Velocity in m/s')
-                    ylabel('Range in m')
+                    xlabel('Velocity [m/s]')
+                    ylabel('Range [m]')
                     colorbar
                     colormap jet
                     title(['Contour of Backscattered Power at RX antenna ', num2str(ant), ' in dB'])
