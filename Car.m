@@ -372,7 +372,13 @@ classdef Car
                     searchAngle = searchAngle+1;
                     selectAzi = Contour(azi<a+0.5*searchAngle & azi>a-0.5*searchAngle,:);
                 end
-                obj.rCoverage(a-obj.aziCoverage(1)+1) = min(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)); %find min Range for corresponding azi
+                minR = min(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)); %find min Contour Point Range for corresponding azi
+                if minR < 0 && max(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)) < 0
+                    minR = (1+size(fmcw.rangeBins,2))*fmcw.dR; %Target behind Radar and not visible
+                elseif minR < 0 && max(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)) > 0
+                    minR = fmcw.dR; % Target right in front of Radar, partly behind
+                end
+                obj.rCoverage(a-obj.aziCoverage(1)+1) = minR; 
             end
             if obj.plotContour
                 figure
@@ -652,7 +658,7 @@ classdef Car
             
             azi = atand(obj.yPos./obj.xPos); %azimuth of target Point
             DOA = abs(obj.normAngle(azi-180-obj.heading));
-            hittingAngle = abs(normAngle(obj,DOA))+1;
+            hittingAngle = abs(normAngle(obj,DOA));
             RCSdBsm = interp1(0:10:180, obj.RCS, hittingAngle); % Find RCS for corresponding DOA from measurement data
             relRCS = 1/sum([Scatterer(:,4)', wheelScatterer(:,4)']) * [Scatterer(:,4)', wheelScatterer(:,4)']; % relative RCS contribution [0,1]
             obj.RCSsigma = relRCS* 10^(RCSdBsm/10); %(/30 for measurement) in square meters
@@ -672,7 +678,7 @@ classdef Car
             
             
             % Collect all Car Scattering Points
-            obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', obj.RCSsigma,...
+            obj.CarTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma,...
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
             
             obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)', wheelScatterer(:,1)'; Scatterer(:,2)',wheelScatterer(:,2)'; Elref', WheelElref'], ...

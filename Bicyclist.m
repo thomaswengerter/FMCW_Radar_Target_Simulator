@@ -6,7 +6,7 @@ classdef Bicyclist
     %   for now (mostly not radial)
     
     properties
-        plotContour = true; %bool: set to true to see scattering points
+        plotContour = false; %bool: set to true to see scattering points
         
         ID = [];
         typeNr = [];
@@ -172,7 +172,7 @@ classdef Bicyclist
                 FnumRefPoints = floor(lenFrame/2/obj.drefPoints); %Frame
                 SFnumRefPoints = floor(obj.frameHeight/obj.drefPoints); %Seatpost/Fork
                 if abs(DOA) < 5
-                    HnumRefPoints = loor(obj.width/obj.drefPoints); %Handlebar
+                    HnumRefPoints = floor(obj.width/obj.drefPoints); %Handlebar
                     dir = 1;
                 else
                     HnumRefPoints = floor(obj.width/obj.drefPoints); %Person
@@ -235,10 +235,7 @@ classdef Bicyclist
                 hittingAngle(hittingAngle>90) = abs(hittingAngle(hittingAngle>90)-180);
             end
             relRCScontour = (1-2*hittingAngle/180); % const RCS for all reflections from one Contour Point!!!!!!!!!
-
-            
-            
-            
+                       
             
             if obj.plotContour
                 scatter(Contour(:,1),Contour(:,2),[], 'r')
@@ -302,7 +299,7 @@ classdef Bicyclist
                     %vi(yi>(obj.rTire)) = 0; % static tire case reflection
                     % tire reflection with rotational velocity
                     %velBins = (-obj.vel:fmcw.dV:obj.vel);
-                    vi(abs(yi)<=(obj.rTire)) = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire.* (1-abs(randn(sum(abs(yi)<=(obj.rTire)),1))-0.5)*2;
+                    vi(abs(yi)<=(obj.rTire)) = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire.* (1-abs(rand(sum(abs(yi)<=(obj.rTire)),1))-0.5)*2;
                     
                     
                     % Acceleration
@@ -313,6 +310,7 @@ classdef Bicyclist
                     tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
                     wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrot).* sin((vrot)./ r .* tsamp) .* (vrot./r);
                     
+                    
                     hittingAngle = abs(obj.normAngle(wDOA(i)-WheelCenter(i,3))); %hitting angle at Contour Point
                     RCSy = ones(size(yi));
                     RCSy(abs(yi)<obj.rTire) = sin(acos(yi(abs(yi)<=obj.rTire)/obj.rTire)); %RCS relative to reflection Position inside tire
@@ -320,7 +318,8 @@ classdef Bicyclist
                     if sum(hittingAngle > 90)>0
                         hittingAngle(hittingAngle>90) = abs(hittingAngle(hittingAngle>90)-180);
                     end
-                    relRCS = (1-2*hittingAngle/180).* RCSy.* hiddenFactor;
+                    relRCS = RCSy.* hiddenFactor; %  (1-2*hittingAngle/180).*
+                    
                     
                     %Trafo back to original Coordinate System
                     [x,y] = toLocal(obj, xi, yi, WheelCenter(i,3)-180);
@@ -333,7 +332,7 @@ classdef Bicyclist
                     end
                 end
                 
-            else
+            else % Angle not betweeen [-5,5] or [175,185]
                 
                 % Sample random Positions around Wheel center
                 % wheelScatterer = [#wheel, reflections, [xPos,yPos,vel,RCS] ]
@@ -346,24 +345,24 @@ classdef Bicyclist
                     %Area of a Ring with const. v on the wheel: A=pi*(r1^2 - r2^2)
                     % A ~ dA/dr ~ 2dr with dr = r2-r1
                     % => RCS ~ 2r   and   vd ~ r
-                    
+
                     %Full Doppler Model
-                    
+
                     % Coordinate Transform in Wheel Center: xi, yi
                     varx = 0.1; %max diameter of bike tire around 0.2m 
                     vary = obj.rTire; % ~radius of tire 
                     xi = varx* 2*(0.5-rand(obj.WheelReflectionsFactor,1));
                     yi = vary* randn(obj.WheelReflectionsFactor,1);
                     yi(abs(yi)>obj.rTire) = vary * 2*(0.5-rand(sum(abs(yi)>obj.rTire),1));
-       
+
                     % Sample local velocity in xi-yi-plane
                     vi = zeros(size(yi));
                     %vi(yi>(obj.rTire)) = 0; % static tire case reflection
                     % tire reflection with rotational velocity
                     %velBins = (-obj.vel:fmcw.dV:obj.vel);
                     vi(abs(yi)<=(obj.rTire)) = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire.* (rand(sum(abs(yi)<=(obj.rTire)),1)-0.5)*2;
-                    
-                    
+
+
                     % Acceleration
                     vrot = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire;
                     z = vi(abs(yi)<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(abs(yi)<=(obj.rTire)).^2)./ (vrot);
@@ -371,7 +370,7 @@ classdef Bicyclist
                     t = acos(vi(abs(yi)<=(obj.rTire))./(vrot)).* r./(vrot);
                     tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
                     wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrot).* sin((vrot)./ r .* tsamp) .* (vrot./r);
-                    
+
                     hittingAngle = abs(obj.normAngle(wDOA(i)-WheelCenter(i,3))); %hitting angle at Contour Point
                     RCSy = ones(size(yi));
                     RCSy(abs(yi)<obj.rTire) = sin(acos(yi(abs(yi)<=obj.rTire)/obj.rTire)); %RCS relative to reflection Position inside tire
@@ -379,20 +378,19 @@ classdef Bicyclist
                     if hittingAngle > 90
                         hittingAngle(hittingAngle>90) = abs(hittingAngle(hittingAngle>90)-180);
                     end
-                    relRCS = (1-2*(hittingAngle+5)/180).* RCSy.* hiddenFactor;
-                    
+                    relRCS = RCSy.* hiddenFactor; % (1-2*(hittingAngle)/180).*
+
                     %Trafo back to original Coordinate System
                     [x,y] = toLocal(obj, xi, yi, WheelCenter(i,3)-180);
-                    
+
                     wheelScatterer(i,:,:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y, obj.vel+vi, relRCS];
-                    
+
                     if obj.plotContour
                         scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'y.')
                         hold on
                     end
                 end
             end
-
             
              % Filter low RCS points
             wheelScatterer = reshape(wheelScatterer, [], 4); %allign Scatterers in a Column Vector
@@ -428,7 +426,13 @@ classdef Bicyclist
                     searchAngle = searchAngle+1;
                     selectAzi = Scatterer(azi<a+0.5*searchAngle & azi>a-0.5*searchAngle,:);
                 end
-                obj.rCoverage(a-obj.aziCoverage(1)+1) = min(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)); %find min Range for corresponding azi
+                minR = min(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)); %find min Contour Point Range for corresponding azi
+                if minR < 0 && max(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)) < 0
+                    minR = (1+size(fmcw.rangeBins,2))*fmcw.dR; %Target behind Radar and not visible
+                elseif minR < 0 && max(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)) > 0
+                    minR = fmcw.dR; % Target right in front of Radar, partly behind
+                end
+                obj.rCoverage(a-obj.aziCoverage(1)+1) = minR;
             end
             if obj.plotContour
                 figure
@@ -456,7 +460,7 @@ classdef Bicyclist
             %
             
             
-            hittingAngle = abs(normAngle(obj,DOA))+1;
+            hittingAngle = abs(normAngle(obj,DOA));
             RCSdBsm = interp1(0:10:180, obj.RCS, hittingAngle); % Find RCS for corresponding DOA from measurement data
             relRCS = 1/sum(Scatterer(:,3)) * Scatterer(:,3)'; % relative RCS contribution [0,1]
             obj.RCSsigma = relRCS* 10^(RCSdBsm/10); %(/30 for measurement) in square meters
@@ -475,9 +479,10 @@ classdef Bicyclist
             
             
             % Collect all Car Scattering Points
-            obj.BicyclistTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', obj.RCSsigma,...
+            % Swerling2 optional
+            obj.BicyclistTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma,...
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
-            
+                    
             obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)'; Scatterer(:,2)'; Elref'], ...
                     'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*obj.vel*ones(size(Contour(:,1)))', cosd(obj.heading).*wheelScatterer(:,3)';...
                     sind(obj.heading)*obj.vel*ones(size(Contour(:,1)))', sind(obj.heading).*wheelScatterer(:,3)'; ...
