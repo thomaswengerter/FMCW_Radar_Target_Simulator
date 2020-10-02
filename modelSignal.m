@@ -96,8 +96,6 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                     end
                 end
                 % Filter covered Scatterers
-                CoveredFilter = zeros(size(CoveredFilter));
-                CoveredFilter(1,1) = 1;
                 if sum(CoveredFilter, 'all')>0
                     obstruction = 1; % some Target points are obstructed
                     if sum(CoveredFilter) == length(post)

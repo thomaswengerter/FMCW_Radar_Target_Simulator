@@ -6,7 +6,7 @@ classdef Bicyclist
     %   for now (mostly not radial)
     
     properties
-        plotContour = false; %bool: set to true to see scattering points
+        plotContour = true; %bool: set to true to see scattering points
         
         ID = [];
         typeNr = [];
@@ -134,11 +134,11 @@ classdef Bicyclist
                 FnumRefPoints = floor(lenFrame/obj.drefPoints); %Frame
                 SFnumRefPoints = floor(obj.frameHeight/obj.drefPoints); %Seatpost/Fork
                 HnumRefPoints = floor(obj.width/obj.drefPoints); %Handlebar
-                PnumRefPoints = floor(obj.length/obj.drefPoints); %Person
+                PnumRefPoints = 8; %Person rl arms, legs, feet, shoulders
                                 
-                Contour = zeros(FnumRefPoints+2*SFnumRefPoints+HnumRefPoints,3);
+                Contour = zeros(FnumRefPoints+2*SFnumRefPoints+HnumRefPoints+PnumRefPoints,3);
                 %Contour = [xRefPoint, yRefPoint, orientationAngle]
-
+                %% Bicycle Frame (side)
                 for i = 1:FnumRefPoints
                     % Approx side of Frame with a linear line of reflection
                     % points
@@ -165,12 +165,33 @@ classdef Bicyclist
                     Contour(i+FnumRefPoints+2*SFnumRefPoints,2) = obj.yPos+sind(obj.heading)*(lenFrame)/2-sind(obj.heading)*0.4*obj.rTire+(rand()-0.5)*obj.width*sind(obj.heading+90);
                     Contour(i+FnumRefPoints+2*SFnumRefPoints,3) = obj.normAngle(obj.heading); %actually bidirectional angle for frame
                 end
-                                
+                    
+                %% Person (side)
+                % Arms
+                for i = 1:2
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints,1) = obj.xPos+cosd(obj.heading)*(lenFrame)/2*(1.2*rand()-0.2)-cosd(obj.heading)*0.4*obj.rTire-(rand())*(-1)^i*obj.width/2*cosd(obj.heading+90); 
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints,2) = obj.yPos+sind(obj.heading)*(lenFrame)/2*(1.2*rand()-0.2)-sind(obj.heading)*0.4*obj.rTire-(rand())*(-1)^i*obj.width/2*sind(obj.heading+90);
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints,3) = obj.normAngle(obj.heading+(-1)^i*90); %not bidirectional anymore!
+                end
+                % Shoulders
+                for i = 1:2
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints+2,1) = obj.xPos+cosd(obj.heading)*(0.25*rand())-(rand())*(-1)^i*obj.width/2*cosd(obj.heading+90); 
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints+2,2) = obj.yPos+sind(obj.heading)*(0.25*rand())-(rand())*(-1)^i*obj.width/2*sind(obj.heading+90);
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints+2,3) = obj.normAngle(obj.heading+(-1)^i*90); %not bidirectional anymore!
+                end
+                % Feet/Legs/Knees
+                pedalingSpeed = randn(1,4)*1.5; % max 3.5m/s
+                for i = 1:4
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints+4,1) = obj.xPos+cosd(obj.heading)*(0.5*rand()-0.25)-(rand())*(-1)^i*obj.width/3*cosd(obj.heading+90); 
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints+4,2) = obj.yPos+sind(obj.heading)*(0.5*rand()-0.25)-(rand())*(-1)^i*obj.width/3*sind(obj.heading+90);
+                    Contour(i+FnumRefPoints+2*SFnumRefPoints+HnumRefPoints+4,3) = obj.normAngle(obj.heading+(-1)^i*90); %not bidirectional anymore!
+                end
                 
             else
                 %Front/Back View
                 FnumRefPoints = floor(lenFrame/2/obj.drefPoints); %Frame
                 SFnumRefPoints = floor(obj.frameHeight/obj.drefPoints); %Seatpost/Fork
+                PnumRefPoints = 8;
                 if abs(DOA) < 5
                     HnumRefPoints = floor(obj.width/obj.drefPoints); %Handlebar
                     dir = 1;
@@ -178,11 +199,11 @@ classdef Bicyclist
                     HnumRefPoints = floor(obj.width/obj.drefPoints); %Person
                     dir = -1;
                 end
-                PnumRefPoints = 0; %Person
                                 
-                Contour = zeros(FnumRefPoints+SFnumRefPoints+HnumRefPoints,3);
+                Contour = zeros(FnumRefPoints+SFnumRefPoints+HnumRefPoints+PnumRefPoints,3);
                 %Contour = [xRefPoint, yRefPoint, orientationAngle]
                 
+                %% Bicycle Frame
                 for i = 1:FnumRefPoints
                     % Approx side of Frame with a linear line of reflection
                     % points
@@ -221,6 +242,29 @@ classdef Bicyclist
                         Contour(i+FnumRefPoints+SFnumRefPoints,3) = obj.normAngle(obj.heading); %actually bidirectional angle for frame
                     end
                 end
+                
+                %% Person
+                %% Person (side)
+                % Arms
+                for i = 1:2
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints,1) = obj.xPos+cosd(obj.heading)*(lenFrame)/2*(1.2*rand()-0.2)-cosd(obj.heading)*0.4*obj.rTire-(rand())*(-1)^i*obj.width/2*cosd(obj.heading+90); 
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints,2) = obj.yPos+sind(obj.heading)*(lenFrame)/2*(1.2*rand()-0.2)-sind(obj.heading)*0.4*obj.rTire-(rand())*(-1)^i*obj.width/2*sind(obj.heading+90);
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints,3) = obj.normAngle(obj.heading+(-1)^dir*180); %not bidirectional anymore!
+                end
+                % Shoulders
+                for i = 1:2
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints+2,1) = obj.xPos+cosd(obj.heading)*(0.25*rand())-(rand())*(-1)^i*obj.width/2*cosd(obj.heading+90); 
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints+2,2) = obj.yPos+sind(obj.heading)*(0.25*rand())-(rand())*(-1)^i*obj.width/2*sind(obj.heading+90);
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints+2,3) = obj.normAngle(obj.heading+(-1)^dir*180); %not bidirectional anymore!
+                end
+                % Feet/Legs/Knees
+                pedalingSpeed = randn(1,4)*1.5; % max 3.5m/s
+                for i = 1:4
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints+4,1) = obj.xPos+cosd(obj.heading)*(0.5*rand()-0.25)-(rand())*(-1)^i*obj.width/3*cosd(obj.heading+90); 
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints+4,2) = obj.yPos+sind(obj.heading)*(0.5*rand()-0.25)-(rand())*(-1)^i*obj.width/3*sind(obj.heading+90);
+                    Contour(i+FnumRefPoints+SFnumRefPoints+HnumRefPoints+4,3) = obj.normAngle(obj.heading+(-1)^dir*180); %not bidirectional anymore!
+                end
+                
             end
             
             
@@ -229,16 +273,22 @@ classdef Bicyclist
             
             %Calculate RCS for Contour Points
             azi = atand(Contour(:,2)./Contour(:,1)); %azimuth of target Point
-            DOAall = abs(obj.normAngle(azi-180-obj.heading));
+            DOAall = abs(obj.normAngle(azi-180));
             hittingAngle = abs(obj.normAngle(DOAall-Contour(:,3))); %hitting angle at Contour Point
-            if sum(hittingAngle > 90)>0
-                hittingAngle(hittingAngle>90) = abs(hittingAngle(hittingAngle>90)-180);
+            if sum(hittingAngle(1:end-8) > 90)>0
+                sel = [hittingAngle(1:end-8)>90; zeros(8,1)]; % rotate incident angle for bidirectional points, not for person (8)!
+                hittingAngle(sel==1) = abs(hittingAngle(sel==1)-180);
             end
-            relRCScontour = (1-2*hittingAngle/180); % const RCS for all reflections from one Contour Point!!!!!!!!!
+            relRCScontour = (1-hittingAngle/180); % const RCS for all reflections from one Contour Point!!!!!!!!!
                        
             
             if obj.plotContour
-                scatter(Contour(:,1),Contour(:,2),[], 'r')
+                figure
+                scatter(Contour(1:end-8,1),Contour(1:end-8,2),[], 'b')
+                hold on;
+                scatter(Contour(end-7:end-4,1),Contour(end-7:end-4,2),[], 'm')
+                hold on;
+                scatter(Contour(end-3:end,1),Contour(end-3:end,2),[], 'mx')
                 hold on;
             end
             
@@ -261,7 +311,7 @@ classdef Bicyclist
             
             %Calc max turn rate for Doppler
             turnRate = obj.vel/(2*pi*obj.rTire); % turns per second
-            obj.WheelReflectionsFactor = round((2*obj.rTire/obj.drefPoints));
+            obj.WheelReflectionsFactor = round((4*obj.rTire/obj.drefPoints));
             
             %Check visibility
             if abs(DOA)<5 || abs(DOA)>175
@@ -327,7 +377,8 @@ classdef Bicyclist
                     wheelScatterer(i,:,:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y, obj.vel+vi, relRCS];
                     
                     if obj.plotContour
-                        scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'y.')
+                        scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'rx')
+                        legend('Frame Reflection Points', 'Static Person Reflection Points', 'Dynamic Person Reflection Points', 'Dynamic Tyre Reflection Points')
                         hold on
                     end
                 end
@@ -386,10 +437,16 @@ classdef Bicyclist
                     wheelScatterer(i,:,:) = [WheelCenter(i,1)+x, WheelCenter(i,2)+y, obj.vel+vi, relRCS];
 
                     if obj.plotContour
-                        scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'y.')
+                        scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'rx')
+                        legend('Frame/Person Reflection Points', 'Dynamic Tyre Reflection Points')
                         hold on
                     end
                 end
+            end
+            if obj.plotContour
+                title('Reflection Points sampled for Bicyclist')
+                xlabel('x Position (m)')
+                ylabel('y Position (m)')
             end
             
              % Filter low RCS points
@@ -434,11 +491,11 @@ classdef Bicyclist
                 end
                 obj.rCoverage(a-obj.aziCoverage(1)+1) = minR;
             end
-            if obj.plotContour
-                figure
-                scatter(Scatterer(:,1),Scatterer(:,2));
-                hold on
-            end
+%             if obj.plotContour
+%                 figure
+%                 scatter(Scatterer(:,1),Scatterer(:,2));
+%                 hold on
+%             end
             
             
             
@@ -484,8 +541,9 @@ classdef Bicyclist
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
                     
             obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)'; Scatterer(:,2)'; Elref'], ...
-                    'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*obj.vel*ones(size(Contour(:,1)))', cosd(obj.heading).*wheelScatterer(:,3)';...
-                    sind(obj.heading)*obj.vel*ones(size(Contour(:,1)))', sind(obj.heading).*wheelScatterer(:,3)'; ...
+                    'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*obj.vel*ones(size(Contour(1:end-4,1)))', ...
+                    cosd(obj.heading)*pedalingSpeed, cosd(obj.heading).*wheelScatterer(:,3)';...
+                    sind(obj.heading)*obj.vel*ones(size(Contour(1:end-4,1)))', sind(obj.heading)*pedalingSpeed, sind(obj.heading).*wheelScatterer(:,3)'; ...
                     zeros(size(Contour(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
                     'Acceleration', [zeros(size(Contour(:,3)')), cosd(obj.heading).*wheelAcceleration(:,1)';...
                     zeros(size(Contour(:,3)')), sind(obj.heading).*wheelAcceleration(:,1)'; ...

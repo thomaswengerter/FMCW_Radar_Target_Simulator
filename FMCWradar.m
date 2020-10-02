@@ -174,7 +174,7 @@ classdef FMCWradar
             obj.MStrx = phased.Transmitter('PeakPower',obj.TXpeakPower,'Gain',obj.TXgain);
             % Radar Receiver
             antenna = phased.CustomAntennaElement('AzimuthAngles', -180:10:180, 'SpecifyPolarizationPattern', true, 'HorizontalMagnitudePattern', obj.HantPattern,'VerticalMagnitudePattern', obj.VantPattern);
-            obj.MSRXarray = phased.ULA('Element', antenna, 'NumElements', obj.RXant, 'ElementSpacing', obj.c0/obj.f0);
+            obj.MSRXarray = phased.ULA('Element', antenna, 'NumElements', obj.RXant, 'ElementSpacing', obj.c0/obj.f0, 'ArrayAxis', 'y');
             obj.MSrcvx = phased.ReceiverPreamp('Gain',obj.RXgain,'NoiseFigure',obj.RXNF);
         end
         
@@ -350,11 +350,17 @@ classdef FMCWradar
             winN        = zeros(1,1,obj.RXant);
             winN(:)     = hann(obj.RXant);
             winN        = repmat(winN, [obj.K/2, obj.L, 1]);
-            SB = cat(3, zeros(obj.K/2, obj.L, obj.RXant/2), SB .* winN, zeros(obj.K/2, obj.L, obj.RXant/2));
-            SB = fft(ifftshift(SB,3), obj.RXant*2, 3)/sum(winN(1,1,:));
+            
+            % Output 160x256x16
+%             SB = cat(3, zeros(obj.K/2, obj.L, obj.RXant/2), SB .* winN, zeros(obj.K/2, obj.L, obj.RXant/2));
+%             SB = fft(ifftshift(SB,3), obj.RXant*2, 3)/sum(winN(1,1,:));
+            % Output 160x256x8
+            SB = cat(3, zeros(obj.K/2, obj.L, 0), SB .* winN, zeros(obj.K/2, obj.L, 0));
+            SB = fft(ifftshift(SB,3), obj.RXant, 3)/sum(winN(1,1,:));
+            
             SB = fftshift(SB,3);
 
-            
+            %SB = flip(SB, 3); %Reorder RX antennas
             RDmap = 10 * log10(abs(SB).^2); % RD map in logarithmic scale
 
         end
@@ -379,9 +385,9 @@ classdef FMCWradar
                 figure;
                 x = obj.velBins+obj.egoMotion; % Speed with egoMotion
                 y = obj.rangeBins(1:length(obj.rangeBins/2));
-                imagesc(x,y,rangeDoppler+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
+                imagesc(x*3.6,y,rangeDoppler+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
                 set(gca,'YDir','normal')
-                xlabel('Velocity [m/s]')
+                xlabel('Velocity [km/h]')
                 ylabel('Range [m]')
                 colorbar
                 colormap jet
@@ -405,9 +411,9 @@ classdef FMCWradar
                         fprintf('Simulation of Target starting at Range %.2f m and radial Velocity %.2f m/s.\n', ...
                         target(1), target(2))
                     end
-                    imagesc(x(6:end),y,RDmap_plt(6:end,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
+                    imagesc(x(6:end)*3.6,y,RDmap_plt(6:end,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
                     set(gca,'YDir','normal')
-                    xlabel('Velocity [m/s]')
+                    xlabel('Velocity [km/h]')
                     ylabel('Range [m]')
                     colorbar
                     colormap jet

@@ -27,7 +27,11 @@
 % RD map:
 % [160, 256, 16] -> (Rangebins, Velbins, RXant*2)
 % RD spectrum in dB
+% 
+% Coordinate Systems:
+% (x,y) -> x: Radar's line of sight   -> y: 90° to the left from radars LoS
 % -------------------------------------------------------------------------
+
 close all
 clear
 

@@ -22,7 +22,7 @@ classdef Car
         RCS = []; %RCS real measurement data
         
         
-        ReceptionAngle = 150; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
+        ReceptionAngle = 160; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
         ReflectionsPerContourPoint = 1; % SET THIS PARAMETER FOR RESOLUTION
         WheelReflectionsFactor = 5; % SET TO EMPHASIZE WHEELS
         drefPoints = []; %Number of reflection points
@@ -487,9 +487,9 @@ classdef Car
             azi = atand(WheelCenter(:,2)./WheelCenter(:,1)); %azimuth of target Point
             wDOA = obj.normAngle(azi+180); %angle of car relative to radar ray 
             hidden = zeros(1,4);
-            hidden(abs(normAngle(obj, wDOA - WheelCenter(:,3)))>100) = 1; %Behind visible Contour
-            hidden(abs(normAngle(obj, wDOA- WheelCenter(:,3)))<=100 & ...
-                    abs(normAngle(obj, wDOA-WheelCenter(:,3)))>=80) = 2; %Front or Back View -> Special Case
+            hidden(abs(normAngle(obj, wDOA - WheelCenter(:,3)))>170) = 1; %Behind visible Contour
+            hidden(abs(normAngle(obj, wDOA- WheelCenter(:,3)))<=95 & ...
+                    abs(normAngle(obj, wDOA-WheelCenter(:,3)))>=85) = 2; %Front or Back View -> Special Case
     
                 
             % Sample random Positions around Wheel center
@@ -678,7 +678,7 @@ classdef Car
             
             
             % Collect all Car Scattering Points
-            obj.CarTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma,...
+            obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', obj.RCSsigma,...
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
             
             obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)', wheelScatterer(:,1)'; Scatterer(:,2)',wheelScatterer(:,2)'; Elref', WheelElref'], ...
