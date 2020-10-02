@@ -5,7 +5,7 @@ classdef Car
     %   Doppler), angular positions of target.
     
     properties
-        plotContour = true; %bool: set to true to see scattering points
+        plotContour = false; %bool: set to true to see scattering points
         
         ID = [];
         typeNr = [];
@@ -487,7 +487,7 @@ classdef Car
             azi = atand(WheelCenter(:,2)./WheelCenter(:,1)); %azimuth of target Point
             wDOA = obj.normAngle(azi+180); %angle of car relative to radar ray 
             hidden = zeros(1,4);
-            hidden(abs(normAngle(obj, wDOA - WheelCenter(:,3)))>170) = 1; %Behind visible Contour
+            hidden(abs(normAngle(obj, wDOA - WheelCenter(:,3)))>95) = 1; %Behind visible Contour
             hidden(abs(normAngle(obj, wDOA- WheelCenter(:,3)))<=95 & ...
                     abs(normAngle(obj, wDOA-WheelCenter(:,3)))>=85) = 2; %Front or Back View -> Special Case
     
@@ -533,7 +533,7 @@ classdef Car
                     RCSy = ones(size(yi));
                     RCSy(abs(yi)<obj.rTire) = sin(acos(yi(abs(yi)<=obj.rTire)/obj.rTire)); %RCS relative to reflection Position inside tire
                     hiddenFactor = 1;
-                    relRCS = (1-2*hittingAngle/180).* RCSy.* hiddenFactor;
+                    relRCS = 0.4 * RCSy.* hiddenFactor;
                     
                     %Trafo back to original Coordinate System
                     [x,y] = toLocal(obj, xi, yi, WheelCenter(i,3)-180);
@@ -574,9 +574,9 @@ classdef Car
                     hittingAngle = abs(obj.normAngle(wDOA(i)-180-WheelCenter(i,3))); %hitting angle at back of wheel
                     RCSy = ones(size(yi));
                     RCSy(abs(yi)<obj.rTire) = (obj.rTire-abs(yi(abs(yi)<obj.rTire)))/obj.rTire; %RCS relative to reflection Position inside tire
-                    hiddenFactor = obj.heightAxis/fmcw.height;
+                    hiddenFactor = obj.heightAxis/fmcw.height; %should be ~0.5
                     %ADD FACTOR FOR REFLECTIONS UNDER CAR
-                    relRCS = 0.5* (1-2*hittingAngle/180) .* RCSy.* hiddenFactor;
+                    relRCS = 0.3 *RCSy.* hiddenFactor;
                     
                     %Trafo back to original Coordinate System
                     [x,y] = toLocal(obj, xi, yi, WheelCenter(i,3)-180);
@@ -622,7 +622,7 @@ classdef Car
                     if hittingAngle > 90
                         hittingAngle = abs(hittingAngle-180);
                     end
-                    relRCS = 0.5* (1-2*hittingAngle/180).* RCSy.* hiddenFactor;
+                    relRCS = 0.1* RCSy.* hiddenFactor;
                     
                     %Trafo back to original Coordinate System
                     [x,y] = toLocal(obj, xi, yi, WheelCenter(i,3)-180);

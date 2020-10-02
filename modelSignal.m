@@ -87,22 +87,37 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                             % considered if not covered
                             if map(azi(i)+90, end, 2)~= targetID && map(azi(i)+90, end, 1)>targetheight
                                 %Covered by other Target
-                                CoveredFilter(i) = 1;
+                                if map(azi(i)+90, end, 2) == 2
+                                    CoveredFilter(i) = 0.5; %Bicyclist only causes partial obstruction
+                                else
+                                    CoveredFilter(i) = 1; %full obstruction
+                                end
                             end
                         elseif map(azi(i)+90, ridx(i), 2)~= targetID && map(azi(i)+90, ridx(i), 1)>targetheight 
                             % This Scatterer is obstructed by other target
-                            CoveredFilter(i) = 1;
+                            if map(azi(i)+90, end, 2) == 2
+                                CoveredFilter(i) = 0.5; %Bicyclist only causes partial obstruction
+                            else
+                                CoveredFilter(i) = 1; %full obstruction
+                            end
                         end
                     end
                 end
+                % Partially obstructed Scatterers (behind Bicyclist)
+                mask = (CoveredFilter==0.5)* rand();
+                CoveredFilter(CoveredFilter==0.5)= 0;
+                CoveredFilter = CoveredFilter + (mask>0.5);
+                
+                
+                
                 % Filter covered Scatterers
                 if sum(CoveredFilter, 'all')>0
                     obstruction = 1; % some Target points are obstructed
-                    if sum(CoveredFilter) == length(post)
+                    if sum(CoveredFilter, 'all') == length(post)
                         obstruction = 4; % all points hidden
-                    elseif sum(CoveredFilter)>(3*length(post)/4)
+                    elseif sum(CoveredFilter, 'all')>(3*length(post)/4)
                         obstruction = 3; % more than 3/4 of the target points are obstructed
-                    elseif sum(CoveredFilter)>(length(post)/2)
+                    elseif sum(CoveredFilter, 'all')>(length(post)/2)
                         obstruction = 2; % more than 1/2 of the target points are obstructed
                     end
                     if targetID>=3 % Vehicle

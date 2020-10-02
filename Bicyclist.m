@@ -6,7 +6,7 @@ classdef Bicyclist
     %   for now (mostly not radial)
     
     properties
-        plotContour = true; %bool: set to true to see scattering points
+        plotContour = false; %bool: set to true to see scattering points
         
         ID = [];
         typeNr = [];
