@@ -34,8 +34,8 @@ classdef FMCWradar
         NoiseFloor = -130; %dB (+/-dynamicNoise +RXNF +dBoffset)
         dynamicNoise = 10; %dB, +/- NoiseFloor
         backscatterStatClutter = false;
-        numStatTargets = 30; % Rayleigh Mean for the number of static clutter targets
-        dBoffset = 40; % offset for RD map plot
+        numStatTargets = 60; % Rayleigh Mean for the number of static clutter targets
+        dBoffset = 30; % offset for RD map plot
         
         %Initialized in function:   init_RDmap(obj)
         chirpInterval = [];
@@ -248,15 +248,15 @@ classdef FMCWradar
             %statTarg ~ [1, 60] targets on 160 Range bins
             
             
-            % Rayleigh distances
-            Ridx = floor(raylrnd(ones(statTarg,1))* length(obj.rangeBins)/3)+1;
+            % Random distances
+            Ridx = floor(rand(statTarg,1)* length(obj.rangeBins))+1;
             Ridx(Ridx>length(obj.rangeBins)) = ceil(rand()*length(obj.rangeBins));
             ranges = obj.rangeBins(Ridx);
             
             % Rayleigh amplitudes with margin [NoiseFloor, NoiseFloor+20dB]
             AmpMargin = 15; %dB variance of Amplitude
-            rAmp = obj.NoiseFloor - AmpMargin * raylrnd(ones(1,statTarg))+25;
-            rangeAtt = 2*AmpMargin * (ranges/obj.rangeBins(end)); % Decay of clutter Power with Range ~R^2
+            rAmp = obj.NoiseFloor - AmpMargin * raylrnd(ones(1,statTarg))+20;
+            rangeAtt = 2*AmpMargin * (ranges/1.5/obj.rangeBins(end)); % Decay of clutter Power with Range ~R^2
             rAmp = sqrt(10.^((rAmp-rangeAtt)/10)); %Amp = sqrt(Pn), dB->scalar
             
             % Generate signals for clutter
@@ -271,7 +271,8 @@ classdef FMCWradar
             for target = 1:statTarg
                 azimut = rand()*180-90;
                 for R = -obj.dR:obj.dR:+obj.dR
-                    for v = -obj.dV:obj.dV:obj.dV
+                    %for v = -obj.dV:obj.dV:obj.dV %Optional to add some N
+                    for v = 0
                         fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *(ranges(target)+R);
                         fd = -obj.f0 * 2/obj.c0 * (obj.egoMotion+v);
                         phase = obj.f0*2/obj.c0*(ranges(target)+R);
@@ -328,7 +329,7 @@ classdef FMCWradar
             SB = fftshift(SB,1);
             
             %Visualization Corrections
-%            SB = SB(1:obj.K/2,:,:);
+            %SB = SB(1:obj.K/2,:,:);
             SB = SB(obj.K/2+1:end,:,:); % dont show negative Range 
 
 
@@ -340,11 +341,6 @@ classdef FMCWradar
 %             SB = fft(SB, [], 2) /obj.L; % /256  FFT 2 of every row with L chirps
             SB = fftshift(SB,2);
 
-            % OPTIONAL: RDmap preprocessing
-            %Set max(RD) to 0
-%             RDmap = RDmap - max(RDmap);
-            %Set minimum to -150dB
-%             RDmap(RDmap < -200) = -200;
             
             % 3rd FFT for Angle
             winN        = zeros(1,1,obj.RXant);
@@ -359,10 +355,17 @@ classdef FMCWradar
             SB = fft(ifftshift(SB,3), obj.RXant, 3)/sum(winN(1,1,:));
             
             SB = fftshift(SB,3);
-
-            %SB = flip(SB, 3); %Reorder RX antennas
+            SB = flip(SB, 3); %Reorder RX antennas RXchannel(1:8) = [+90,-90]
+            
+            
             RDmap = 10 * log10(abs(SB).^2); % RD map in logarithmic scale
-
+            
+            % OPTIONAL: RDmap preprocessing
+            %Set max(RD) to 0
+%             RDmap = RDmap - max(RDmap);
+            %Set minimum to -150dB
+%             RDmap(RDmap < -200) = -200;
+            
         end
         
         

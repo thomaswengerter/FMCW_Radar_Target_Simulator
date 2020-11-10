@@ -263,6 +263,14 @@ for meas = 1:Szenarios
             [sbTarget, obstruction] = modelSignal(Target, targetID, map, fmcw);
             Label{i,2}(end) = obstruction; %set obstruction factor in Label (1:visible, ..., 4: fully hidden)
             
+            if targetID == 1
+                % Power correction for Pedestrian
+                sbTarget = sbTarget*3;
+            else
+                % Power correction for Bikes/Vehicles
+                sbTarget = sbTarget/2;  
+            end
+            
             sb =  sb + sbTarget;
         end
 

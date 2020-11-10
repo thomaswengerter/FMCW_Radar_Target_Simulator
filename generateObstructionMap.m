@@ -73,7 +73,7 @@ for i = 1:sz(1)
 %             end
 %         end
         
-    elseif strcmp(Targets{i,1}(1:end-1),'Veh')
+    elseif strcmp(Targets{i,1}(1:end-1),'Vehicle')
         % INDEX 3
         %for chirp = 1:fmcw.L
         %[post,velt,axt] = move(target,tsamp,target.InitialHeading);

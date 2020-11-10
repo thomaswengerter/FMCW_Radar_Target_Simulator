@@ -5,7 +5,7 @@ function saveMat(RD, label, targetType, targetNo, SimDataPath)
 %   targetNo:   target file index (for Szenario3_1.mat, Bicycle_3.mat)
 %   SimDataPath: Path to sim result folder
 
-savePics = true;
+savePics = false;
 
 folder = [SimDataPath, targetType, '/'];
 

@@ -315,7 +315,7 @@ classdef TrajectoryPlanner
                     targetR = sqrt(Targets{i,2}.xPos^2+Targets{i,2}.yPos^2); %radial distance
                     targetV = cosd(relangle)*Targets{i,2}.vel; %radial velocity
                     azi = atand(Targets{i,2}.yPos/Targets{i,2}.xPos);
-                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.xPos, Targets{i,2}.yPos, Targets{i,2}.width, Targets{i,2}.length, Targets{i,2}.InitialHeading, 0];
+                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.xPos, Targets{i,2}.yPos, Targets{i,2}.width, Targets{i,2}.length, Targets{i,2}.heading, 0];
                 
 %                     Targets{i,2}.InitialPosition(1:2) = obj.trajectory(i,t,:); 
 %                     Targets{i,2}.InitialHeading = obj.heading(i,t);
@@ -343,7 +343,7 @@ classdef TrajectoryPlanner
                     targetR = sqrt(Targets{i,2}.xPos^2+Targets{i,2}.yPos^2); %radial distance
                     targetV = cosd(relangle)*Targets{i,2}.vel; %radial velocity
                     azi = atand(Targets{i,2}.yPos/Targets{i,2}.xPos);
-                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.xPos, Targets{i,2}.yPos, Targets{i,2}.width, Targets{i,2}.length, Targets{i,2}.InitialHeading, 0];
+                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.xPos, Targets{i,2}.yPos, Targets{i,2}.width, Targets{i,2}.length, Targets{i,2}.heading, 0];
                 
 
                 end

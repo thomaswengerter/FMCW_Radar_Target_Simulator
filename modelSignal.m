@@ -73,11 +73,8 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 %Check visibility on map
                 ridx = ceil(sqrt(post(1,:).^2+post(2,:).^2)./fmcw.dR);
                 azi = round(atand(post(2,:)./post(1,:)));
-                if targetID == 1 || targetID >= 3
-                    targetheight = target.Height; %height of pedestrian/car
-                else 
-                    targetheight = max(post(3,:)); %height of bicycle
-                end
+                targetheight = target.Height; %height of pedestrian/car
+                
                 CoveredFilter = zeros(size(azi));
                 for i = 1:length(azi)
                     if abs(azi(i))<90
@@ -100,11 +97,18 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                             else
                                 CoveredFilter(i) = 1; %full obstruction
                             end
+                        elseif map(azi(i)+90, ridx(i), 2)~= targetID && map(azi(i)+90, ridx(i), 1)<=targetheight && map(azi(i)+90, ridx(i), 1)>0
+                            % This Scatterer is obstructed by a smaller target
+                            if map(azi(i)+90, end, 2) == 2
+                                CoveredFilter(i) = 0.5; %Bicyclist only causes partial obstruction
+                            else
+                                CoveredFilter(i) = 0.5; %half obstruction
+                            end
                         end
                     end
                 end
                 % Partially obstructed Scatterers (behind Bicyclist)
-                mask = (CoveredFilter==0.5)* rand();
+                mask = (CoveredFilter==0.5).* rand(size(CoveredFilter));
                 CoveredFilter(CoveredFilter==0.5)= 0;
                 CoveredFilter = CoveredFilter + (mask>0.5);
                 
@@ -224,11 +228,12 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
     for ant = 1:fmcw.RXant
         sb(:,:,ant) = conj(dechirp(xRX(:,:,ant), xTX)); %Mix Tx with Rx to transform sRx to baseband signal       
     end
-    sb = real(sb);
     
     % AD Downsampling fs
     idxstep = fmcw.Propagation_fs/fmcw.fs;
     sb = sb(1:idxstep:end,:,:);
+    
+    sb = real(sb);
     
     %% Crop TX pause between chirps
     if strcmp(fmcw.chirpShape,'SAWgap') && sb(fmcw.K+1,1,1)>0

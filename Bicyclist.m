@@ -33,7 +33,7 @@ classdef Bicyclist
         leakingRatio = [];
         
         RCSsigma = []; %RCS of individual backscatterers
-        InitialHeading = []; %heading in angle relative to x axis
+        InitialHeading = []; %only Spaceholder for move() function call!
         Acceleration = []; %Acceleration for all move() steps
         N = []; %final Number of Scattering points
         TargetPlatform = []; %target platform
@@ -378,7 +378,7 @@ classdef Bicyclist
                     
                     if obj.plotContour
                         scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'rx')
-                        legend('Frame Reflection Points', 'Static Person Reflection Points', 'Dynamic Person Reflection Points', 'Dynamic Tyre Reflection Points')
+                        legend('Frame Reflection Points', 'Static Person Reflection Points', 'Dynamic Person Reflection Points', 'Rotating Wheel Reflection Points')
                         hold on
                     end
                 end
@@ -438,7 +438,7 @@ classdef Bicyclist
 
                     if obj.plotContour
                         scatter(wheelScatterer(i,:,1),wheelScatterer(i,:,2), [], 'rx')
-                        legend('Frame/Person Reflection Points', 'Dynamic Tyre Reflection Points')
+                        legend('Frame Reflection Points', 'Static Person Reflection Points', 'Dynamic Person Reflection Points', 'Dynamic Tyre Reflection Points')
                         hold on
                     end
                 end
@@ -579,7 +579,11 @@ classdef Bicyclist
             % Reflect the signal xtrans from the scattering points of the
             % target object. Angle is not required here, but included to
             % simplify automation.
-            RXsig = obj.BicyclistTarget(xtrans, true);
+            if obj.BicyclistTarget.Model == 'Nonfluctuating'
+                RXsig = obj.BicyclistTarget(xtrans);                
+            else
+                RXsig = obj.BicyclistTarget(xtrans, true);
+            end
         end
         
         
@@ -589,14 +593,14 @@ classdef Bicyclist
             % points
             RCSsig = obj.RCSsigma;
             RCSsig(bool>0) = [];
-            obj.BicyclistTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', RCSsig,...
+            obj.BicyclistTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', RCSsig,...
                     'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
         end
         
         
         %% Restore Car Target Object
         function obj = restoreReflectionPoints(obj, fmcwc0, fmcwf0)
-            obj.BicyclistTarget = phased.RadarTarget('Model', 'Swerling2','MeanRCS', obj.RCSsigma,...
+            obj.BicyclistTarget = phased.RadarTarget('Model', 'Nonfluctuating','MeanRCS', obj.RCSsigma,...
                     'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
         end
     end

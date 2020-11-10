@@ -24,7 +24,7 @@ classdef Car
         
         ReceptionAngle = 160; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
         ReflectionsPerContourPoint = 1; % SET THIS PARAMETER FOR RESOLUTION
-        WheelReflectionsFactor = 5; % SET TO EMPHASIZE WHEELS
+        WheelReflectionsFactor = 4; % SET TO EMPHASIZE WHEELS
         drefPoints = []; %Number of reflection points
         types = 2; %Number of possible car object types
         
@@ -33,7 +33,7 @@ classdef Car
         rCoverage = []; %Range coverage
         
         RCSsigma = []; %RCS of individual backscatterers
-        InitialHeading = []; %heading in angle relative to x axis
+        InitialHeading = []; %only Spaceholder for move() function call!
         Acceleration = []; %Acceleration for all move() steps
         N = []; %final Number of Scattering points
         TargetPlatform = []; %target platform
@@ -515,7 +515,7 @@ classdef Car
        
                     % Sample local velocity in xi-yi-plane
                     vi = zeros(size(yi));
-                    vi(yi>(obj.rTire)) = 0; % static tire case reflection
+                    vi(abs(yi)>(obj.rTire)) = 0; % static tire case reflection
                     % tire reflection with rotational velocity
                     %velBins = (-obj.vel:fmcw.dV:obj.vel);
                     vi(abs(yi)<=(obj.rTire)) = obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire.* (rand(sum(abs(yi)<=(obj.rTire)),1)-0.5)*2;
@@ -526,9 +526,11 @@ classdef Car
                     z = vi(abs(yi)<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(abs(yi)<=(obj.rTire)).^2)./ (vrad);
                     r = sqrt(z.^2+yi(abs(yi)<=(obj.rTire)).^2);
                     t = acos(vi(abs(yi)<=(obj.rTire))./(vrad)).* r./(vrad);
-                    tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
-                    wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
-                    
+                    if ~isempty(t)
+                        tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
+                        wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
+                    end
+                        
                     hittingAngle = abs(obj.normAngle(wDOA(i)-WheelCenter(i,3))); %hitting angle at Contour Point
                     RCSy = ones(size(yi));
                     RCSy(abs(yi)<obj.rTire) = sin(acos(yi(abs(yi)<=obj.rTire)/obj.rTire)); %RCS relative to reflection Position inside tire
@@ -557,7 +559,7 @@ classdef Car
                     
                     % Sample local velocity in xi-yi-plane
                     vi = zeros(size(yi));
-                    vi(yi>(obj.rTire)) = 0; % static tire case reflection
+                    vi(abs(yi)>(obj.rTire)) = 0; % static tire case reflection
                     % tire reflection with rotational velocity
                     %velBins = (-obj.vel:fmcw.dV:0);
                     vi(abs(yi)<=(obj.rTire)) = -obj.vel.* (obj.rTire-abs(yi(abs(yi)<=(obj.rTire))))./obj.rTire.* rand(sum(abs(yi)<=(obj.rTire)),1);
@@ -567,9 +569,10 @@ classdef Car
                     z = vi(abs(yi)<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(abs(yi)<=(obj.rTire)).^2)./ (vrad);
                     r = sqrt(z.^2+yi(abs(yi)<=(obj.rTire)).^2);
                     t = acos(vi(abs(yi)<=(obj.rTire))./(vrad)).* r./(vrad);
-                    tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
-                    wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
-                    
+                    if ~isempty(t)
+                        tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
+                        wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
+                    end
                     
                     hittingAngle = abs(obj.normAngle(wDOA(i)-180-WheelCenter(i,3))); %hitting angle at back of wheel
                     RCSy = ones(size(yi));
@@ -609,9 +612,10 @@ classdef Car
                     z = vi(abs(yi)<=(obj.rTire)).*sqrt(obj.rTire.^2 - yi(abs(yi)<=(obj.rTire)).^2)./ (vrad);
                     r = sqrt(z.^2+yi(abs(yi)<=(obj.rTire)).^2);
                     t = acos(vi(abs(yi)<=(obj.rTire))./(vrad)).* r./(vrad);
-                    tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
-                    wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
-                    
+                    if ~isempty(t)
+                        tsamp = t + [0:(fmcw.chirpsCycle-1)] *fmcw.chirpInterval;
+                        wheelAcceleration(i,abs(yi)<=(obj.rTire),:) = - (vrad).* sin((vrad)./ r .* tsamp) .* (vrad./r);
+                    end
                     
                     hittingAngle = abs(mod(obj.normAngle(wDOA(i)-WheelCenter(i,3)),180)); %hitting angle in front/back of wheel
                     RCSy = ones(size(yi));
@@ -678,7 +682,7 @@ classdef Car
             
             
             % Collect all Car Scattering Points
-            obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', obj.RCSsigma,...
+            obj.CarTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma,...
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
             
             obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)', wheelScatterer(:,1)'; Scatterer(:,2)',wheelScatterer(:,2)'; Elref', WheelElref'], ...
@@ -719,7 +723,11 @@ classdef Car
             % Reflect the signal xtrans from the scattering points of the
             % target object. Angle is not required here, but included to
             % simplify automation.
-            RXsig = obj.CarTarget(xtrans, true);
+            if obj.CarTarget.Model == 'Nonfluctuating'
+                RXsig = obj.CarTarget(xtrans);
+            else
+            	RXsig = obj.CarTarget(xtrans, true); %update RCS with Swerling2
+            end
         end
         
         
@@ -729,14 +737,14 @@ classdef Car
             % points
             RCSsig = obj.RCSsigma;
             RCSsig(bool>0) = [];
-            obj.CarTarget = phased.RadarTarget('Model','Swerling2','MeanRCS', RCSsig,...
+            obj.CarTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', RCSsig,...
                     'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
         end
         
         
         %% Restore Car Target Object
         function obj = restoreReflectionPoints(obj, fmcwc0, fmcwf0)
-            obj.CarTarget = phased.RadarTarget('Model', 'Swerling2','MeanRCS', obj.RCSsigma,...
+            obj.CarTarget = phased.RadarTarget('Model', 'Nonfluctuating','MeanRCS', obj.RCSsigma,...
                     'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
         end
     end
