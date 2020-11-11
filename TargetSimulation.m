@@ -12,19 +12,18 @@ tic
 %rng('default') %seed random variables
 global c_0;
 c_0 = 299792458;
-plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
+plotAntennas = []; %list indices of RX channels to be plotted in RD map
 
 % Select number of target samples
-Pedestrians = 1;
+Pedestrians = 0;
 Bicycles = 0;
-Cars = 0;
+Cars = 1;
 NoTarget = 0; 
 Syntetics = 0; %use Signal simulation for synt point targets in simulateSignal.m
 
 %Generate Radar Object
 fmcw = FMCWradar;
-fmcw = fmcw.init_RDmap();
-% Initialize FMCW radar object and environment
+fmcw = fmcw.init_RDmap(); %Initialize FMCW radar object and environment
 fmcw = fmcw.generateChirpSequence(); %Generate chirp waveform, initialize fmcw.chirps
 fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.antPattern
 fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
@@ -70,7 +69,7 @@ parfor target = 1:Pedestrians
     targetR = sqrt(ped.InitialPosition(1)^2+ped.InitialPosition(2)^2);
     targetV = +ped.WalkingSpeed*cos(ped.InitialHeading/360*2*pi);
     azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
-    
+
     %Model Radar Signal for selected Target
     [sb,~] = modelSignal(ped, 1, [], fmcw);
     sbn = fmcw.addGaussNoise(sb);
@@ -95,7 +94,7 @@ if Bicycles && add_files
 end
 
 fprintf('Simulate Bicycles...\n')
-parfor target = 1:Bicycles
+for target = 1:Bicycles
     bike = Bicyclist;
     bike = bike.initBicycle(floor(1.999* rand()));
     randrange = rand()*0.9*fmcw.rangeBins(end);
@@ -109,6 +108,9 @@ parfor target = 1:Bicycles
     bike.vel = randvel; %m/s
     bike.heading = heading; %degrees, from x-axis
 
+    bike = bike.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
+
+    
     % MATLAB phased Toolbox Bicyclist
 %     bike = backscatterBicyclist;
 %     Spokes = [20, 24, 28, 32, 36];
@@ -131,10 +133,11 @@ parfor target = 1:Bicycles
     %Ground Truth
     %targetR: Range (radial dist. from radar to target)
     %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
-    targetR = sqrt(bike.InitialPosition(1)^2+bike.InitialPosition(2)^2);
-    targetV = +bike.Speed*cos(bike.InitialHeading/360*2*pi);
-    azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
-            
+    relangle = atand(bike.yPos/bike.xPos)-bike.heading; %angle between heading and radial velocity
+    targetR = sqrt(bike.xPos^2+bike.yPos^2); %radial distance
+    targetV = cosd(relangle)*bike.vel; %radial velocity
+    azi = atand(bike.yPos/bike.xPos); 
+    
     %Model Radar Signal for selected Target
     [sb,~] = modelSignal(bike, 2, [],fmcw);
     sbn = fmcw.addGaussNoise(sb);
@@ -144,7 +147,7 @@ parfor target = 1:Bicycles
     %plotNoise;
 
     %Label output and save
-    label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading];
+    label = [targetR, targetV, azi, fmcw.egoMotion, bike.xPos, bike.yPos, 0.65, 2, heading];
     saveMat(bRD, label, 'Bicycle', target+file_offset, SimDataPath)
 end
 fprintf('Done!\n')
@@ -179,7 +182,7 @@ parfor target = 1:Cars
     targetR = sqrt(car.xPos^2+car.yPos^2); %radial distance
     targetV = cosd(relangle)*car.vel; %radial velocity
     azi = atand(car.yPos/car.xPos);
-    
+
     car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
     
     

@@ -63,8 +63,7 @@ end
 
 %% Generate Radar Object
 fmcw = FMCWradar;
-fmcw = fmcw.init_RDmap();
-% Initialize FMCW radar object and environment
+fmcw = fmcw.init_RDmap(); %Initialize FMCW radar object and environment
 fmcw = fmcw.generateChirpSequence(); %Generate chirp waveform, initialize fmcw.chirps
 fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.antPattern
 fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
