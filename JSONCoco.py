@@ -15,9 +15,9 @@ import cv2
 SimDataPath = './SimulationData0910_Train/'
 trainvalname = 'train2017'
 
-uniformBoxes = True
-writeJPGs = True
-drawBoxes = False
+uniformBoxes = True #generalized Doppler spreads for targets
+writeJPGs = True #save jpg images
+drawBoxes = False #plot generated annotations
 
 
 def generate_annotation(TargetID, label, image_id, annotation_id):
