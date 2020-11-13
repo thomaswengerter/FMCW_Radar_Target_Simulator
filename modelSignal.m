@@ -37,7 +37,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
         for chirp = 1:fmcw.L
             % Looping through chirps
             
-            %% Move Targets
+            %% Move Radar & Targets
             %fmcw.MSradarplt = phased.Platform('InitialPosition',[0;0;fmcw.height], ...
             %    'OrientationAxesOutputPort',true, 'InitialVelocity', [fmcw.egoMotion;0;0], 'Acceleration', [0;0;0], ...
             %    'MotionModel', 'Acceleration', 'AccelerationSource', 'Input port');
