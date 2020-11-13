@@ -41,7 +41,7 @@ c_0 = 299792458;
 
 plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
 Szenarios = 100; % SET NUMBER OF SZENARIOS
-duration = 1; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
+duration = 2; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
 
 %% Setup directories to save results
 SimDataPath = 'SimulationData/';
@@ -232,7 +232,7 @@ for meas = 1:Szenarios
         
     % ParFor each measurement step in this scenario 
     % total TIME: 'duration', measurement TIME: 'tstep'
-    for tidx = 1:floor(duration/tstep)
+    parfor tidx = 1:floor(duration/tstep)
         %% III. Generate obstruction map for each chirp/time step
         % Move Targets
         [MovedTargets, Label, rPlt] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
