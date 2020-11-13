@@ -1,4 +1,4 @@
-function [sb,obstruction] = modelSignal(target, targetID, map, fmcw)
+function [sb,obstruction] = modelSignal(target, targetID, map, rPlt, fmcw)
 %% modelSignal() Summary
 %   This function takes the configured radar 'target' object (from phased
 %   toolbox) as input and generates the radar response for the radar
@@ -38,7 +38,13 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             % Looping through chirps
             
             %% Move Targets
-            [posr,velr,~] = fmcw.MSradarplt(tsamp); % current Position of Radar
+            %fmcw.MSradarplt = phased.Platform('InitialPosition',[0;0;fmcw.height], ...
+            %    'OrientationAxesOutputPort',true, 'InitialVelocity', [fmcw.egoMotion;0;0], 'Acceleration', [0;0;0], ...
+            %    'MotionModel', 'Acceleration', 'AccelerationSource', 'Input port');
+            %[posr,velr,~] = fmcw.MSradarplt(tsamp, [0;0;0]); % current Position of Radar
+            posr = rPlt(:,1);
+            velr = rPlt(:,2);
+            
             %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
             if targetID >= 3 % Vehicle
                 target.CarTarget.release();
@@ -199,11 +205,12 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             Rayleigh = raylrnd(1:100);
             Pdistribution = Rayleigh/max(Rayleigh);
             sigma = 1- Pdistribution(ceil(rand()*100)); %RCS
-            ClutterObj = phased.RadarTarget('Model','Swerling2','MeanRCS',sigma,...
+            ClutterObj = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',sigma,...
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
 
             for chirp = 1:fmcw.L
-                [posr,velr,~] = fmcw.MSradarplt(tsamp);
+                %[posr,velr,~] = fmcw.MSradarplt(tsamp);
+                % RADAR POSITIONING NOT IMPLEMENTED CORRECTLY
                 [~,angle] = rangeangle(posr,post,axt);
                 mangle = mean(angle,2); %angle between target and radar
                 if abs(mangle(1)-angle(1,1))>100 && abs(mangle(1)-angle(1,end))>100

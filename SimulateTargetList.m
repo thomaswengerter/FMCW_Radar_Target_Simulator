@@ -141,7 +141,8 @@ for meas = 1:Szenarios
         targetV = cosd(relangle)*bike.vel; %radial velocity
         azi = atand(bike.yPos/bike.xPos);
 
-        bike = bike.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
+        rPos = [0;0;fmcw.height];
+        bike = bike.generateBackscatterTarget(fmcw,rPos); %Generate backscattering points with RCS
 
         %Label output and save
         %label =  [targetR, targetV, azi, fmcw.egoMotion, bike.xPos, bike.yPos, bike.width, bike.length, heading, 0];
@@ -212,7 +213,8 @@ for meas = 1:Szenarios
         targetV = cosd(relangle)*car.vel; %radial velocity
         azi = atand(car.yPos/car.xPos);
 
-        car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
+        rPos = [0;0;fmcw.height];
+        car = car.generateBackscatterTarget(fmcw,rPos); %Generate backscattering points with RCS
 
         %Label output and save
         %label =  [targetR, targetV, azi, fmcw.egoMotion, car.xPos, car.yPos, car.width, car.length, heading, 0];
@@ -227,23 +229,24 @@ for meas = 1:Szenarios
     Traj = TrajectoryPlanner;
     Traj = init_TrajectoryPlanner(Traj, tstep, duration, Targets, fmcw);
     egoMotion = fmcw.egoMotion;
-    
-    
+        
     % ParFor each measurement step in this scenario 
     % total TIME: 'duration', measurement TIME: 'tstep'
-    parfor tidx = 1:floor(duration/tstep)
+    for tidx = 1:floor(duration/tstep)
         %% III. Generate obstruction map for each chirp/time step
         % Move Targets
-        [MovedTargets, Label] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
+        [MovedTargets, Label, rPlt] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
+        rPos = rPlt(:,1);
+        
         sz = size(MovedTargets);        
         for i = 1:sz(1)
             if strcmp(MovedTargets{i,1}(1:4), 'Vehi') || strcmp(MovedTargets{i,1}(1:3), 'Bic')
-                MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw); %update car reflection point positions
+                MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw,rPos); %update car reflection point positions
             end
         end
         
         % Generate ObstructionMap
-        map = generateObstructionMap(MovedTargets, fmcw);
+        map = generateObstructionMap(MovedTargets, fmcw, rPos);
 
 
         %% IV. Simulate Baseband Signals
@@ -259,8 +262,25 @@ for meas = 1:Szenarios
                 targetID = 3;
             end
             %Model Radar Signal for selected Target
-            [sbTarget, obstruction] = modelSignal(Target, targetID, map, fmcw);
+            [sbTarget, obstruction] = modelSignal(Target, targetID, map, rPlt, fmcw);
+            
+            %Update Label
             Label{i,2}(end) = obstruction; %set obstruction factor in Label (1:visible, ..., 4: fully hidden)
+            if rPos(1)>0 || rPos(2)>0
+                % re-calculate Label relative to current radar position
+                tx = Label{i,2}(5);
+                ty = Label{i,2}(6);
+                heading = Label{i,2}(9);
+                Label{i,2}(1) = sqrt((tx-rPos(1))^2+(ty-rPos(2))^2); % R
+                Label{i,2}(3) = atand((ty-rPos(2))/(tx-rPos(1))); %azi
+                if strcmp(MovedTargets{i,1}(1:3), 'Ped')
+                    Label{i,2}(2) = cosd(Label{i,2}(3)-heading)*Target.WalkingSpeed; % vD
+                else
+                    Label{i,2}(2) = cosd(Label{i,2}(3)-heading)*Target.vel; % vD
+                end
+                Label{i,2}(5) = tx-rPos(1); % xPos
+                Label{i,2}(6) = ty-rPos(2); % yPos
+            end
             
             if targetID == 1
                 % Power correction for Pedestrian

@@ -107,7 +107,7 @@ classdef Bicyclist
         
         
         %% Generate Point Modell with RCS
-        function obj = generateBackscatterTarget(obj,fmcw)
+        function obj = generateBackscatterTarget(obj,fmcw,rPos)
             %   For current measurement setup, generate the Point Modell
             %   with corresponding RCS. Consider surface
             %   propagation, micro-Doppler and characteristic target 
@@ -473,7 +473,7 @@ classdef Bicyclist
             
             azi = atand(edges(:,2)./edges(:,1));
             
-            azi = atand(Scatterer(:,2)./Scatterer(:,1));
+            azi = atand((Scatterer(:,2)-rPos(2))./(Scatterer(:,1)-rPos(1)));
             obj.aziCoverage = round(min(azi)):round(max(azi));
             obj.rCoverage = zeros(size(obj.aziCoverage));
             for a = obj.aziCoverage
@@ -483,8 +483,8 @@ classdef Bicyclist
                     searchAngle = searchAngle+1;
                     selectAzi = Scatterer(azi<a+0.5*searchAngle & azi>a-0.5*searchAngle,:);
                 end
-                minR = min(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)); %find min Contour Point Range for corresponding azi
-                if minR < 0 && max(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)) < 0
+                minR = min(sqrt((selectAzi(:,1)-rPos(1)).^2+(selectAzi(:,2)-rPos(2)).^2)); %find min Contour Point Range for corresponding azi
+                if minR < 0 && max(sqrt((selectAzi(:,1)-rPos(1)).^2+(selectAzi(:,2)-rPos(2)).^2)) < 0
                     minR = (1+size(fmcw.rangeBins,2))*fmcw.dR; %Target behind Radar and not visible
                 elseif minR < 0 && max(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)) > 0
                     minR = fmcw.dR; % Target right in front of Radar, partly behind

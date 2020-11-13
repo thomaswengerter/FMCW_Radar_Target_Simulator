@@ -20,7 +20,7 @@ classdef FMCWradar
         f0 = 76.5e9; %Radar frequency
         chirpsCycle = 256; %Number of chirps per measurement cycle (Doppler)
         height = 0.5; %position above street in m
-        egoMotion = []; %velocity of the carrying car
+        egoMotion = 0; %[true, false, XX(default)] car with radar moves
         
         %Antennas & Propagation
         TXpeakPower = 0.01; %10dBm in W
@@ -30,7 +30,7 @@ classdef FMCWradar
         RXant = 8;
         
         printNoiseCharacteristics = false; %Print the SNR and noise level
-        %Noise and Clutter // DO NOT CHANGE
+        %Noise and Clutter //ADJUST ACCORDING TO THE MEASUREMENT NOISE FLOOR
         NoiseFloor = -130; %dB (+/-dynamicNoise +RXNF +dBoffset)
         dynamicNoise = 10; %dB, +/- NoiseFloor
         backscatterStatClutter = false;
@@ -91,7 +91,11 @@ classdef FMCWradar
             obj.velBins = (-obj.L/2:obj.L/2-1) *obj.dV;
             %RmaxChirp = (chirpInterval-chirpTime)*c0/2; %max unabiguous Range limited by receiving interval
             obj.Rmaxsamp = obj.fs/4*obj.c0*obj.chirpTime/obj.sweepBw; %max Range limited by sampling freq
-            obj.egoMotion = 0; %obj.velBins(end)* rand()  for random motion of the carrying car
+            if obj.egoMotion == false
+                obj.egoMotion = 0; %stationary radar
+            elseif obj.egoMotion == true
+                obj.egoMotion = obj.velBins(end)* rand(); %random ego-motion of the carrying car
+            end
         end
         
              
@@ -169,7 +173,8 @@ classdef FMCWradar
                 'TwoWayPropagation',true,'SampleRate',obj.Propagation_fs);
             % Radar Position and Motion
             obj.MSradarplt = phased.Platform('InitialPosition',[0;0;obj.height], ...
-                'OrientationAxesOutputPort',true, 'InitialVelocity', [obj.egoMotion;0;0], 'Acceleration', [0;0;0]);
+                'OrientationAxesOutputPort',true, 'InitialVelocity', [obj.egoMotion;0;0], 'Acceleration', [0;0;0], ...
+                'MotionModel', 'Acceleration', 'AccelerationSource', 'Input port');
             % Radar Transmitter
             obj.MStrx = phased.Transmitter('PeakPower',obj.TXpeakPower,'Gain',obj.TXgain);
             % Radar Receiver
@@ -274,7 +279,7 @@ classdef FMCWradar
                     %for v = -obj.dV:obj.dV:obj.dV %Optional to add some N
                     for v = 0
                         fR = - obj.sweepBw/obj.chirpTime * 2/obj.c0 *(ranges(target)+R);
-                        fd = -obj.f0 * 2/obj.c0 * (obj.egoMotion+v);
+                        fd = obj.f0 * 2/obj.c0 * (v); % obj.egoMotion+v
                         phase = obj.f0*2/obj.c0*(ranges(target)+R);
                         % add signals for Frequency shifts (Range, Doppler and Phase shift)
                         rangeMat   = exp(1j*2*pi * fR/obj.fs * rangeIdxMat); % t = over K Sample values(time) add f_R, to each Chirp (L lines)
@@ -386,12 +391,12 @@ classdef FMCWradar
                 % adjusted according to the data, so that they hava a dynamic range of
                 % around 65 dB
                 figure;
-                x = obj.velBins+obj.egoMotion; % Speed with egoMotion
+                x = obj.velBins; % +obj.egoMotion Speed with egoMotion
                 y = obj.rangeBins(1:length(obj.rangeBins/2));
                 imagesc(x*3.6,y,rangeDoppler+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
                 set(gca,'YDir','normal')
-                xlabel('Velocity [km/h]')
-                ylabel('Range [m]')
+                xlabel('Velocity (km/h)')
+                ylabel('Range (m)')
                 colorbar
                 colormap jet
                 title(['Range-Doppler map of Backscattered Power in dB'])
@@ -401,7 +406,7 @@ classdef FMCWradar
                 for ant = plotAntennas
                     RDmap_plt = RDmap(:,:,ant);
                     figure;
-                    x = obj.velBins+obj.egoMotion; % Speed with egoMotion
+                    x = obj.velBins; % +obj.egoMotion Speed with egoMotion
                     y = obj.rangeBins(1:length(obj.rangeBins/2));
         %             y = [fliplr(y),y];
                     if ~isempty(target) %show current target position
@@ -414,10 +419,10 @@ classdef FMCWradar
                         fprintf('Simulation of Target starting at Range %.2f m and radial Velocity %.2f m/s.\n', ...
                         target(1), target(2))
                     end
-                    imagesc(x(6:end)*3.6,y,RDmap_plt(6:end,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
+                    imagesc(x*3.6,y,RDmap_plt(1:end,:,1)+obj.dBoffset) % ADDED 60dB OFFSET ONLY FOR COMPARISION WITH REAL DATA
                     set(gca,'YDir','normal')
-                    xlabel('Velocity [km/h]')
-                    ylabel('Range [m]')
+                    xlabel('Velocity (km/h)')
+                    ylabel('Range (m)')
                     colorbar
                     colormap jet
                     title(['Contour of Backscattered Power at RX antenna ', num2str(ant), ' in dB'])
