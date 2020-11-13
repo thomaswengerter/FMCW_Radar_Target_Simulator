@@ -10,15 +10,17 @@ classdef TrajectoryPlanner
         heading = [];       %heading
         trajectory = [];    %position
         velocity = [];      %velocity
+        rtrajectory = [];   %radar position
+        rvelocity = [];     %radar velocity
         plotTraj = false;    %bool for live plot
     end
     
     methods
         function obj = init_TrajectoryPlanner(obj, tstep, Szduration, Targets, fmcw)
-            % Initialize the for all traj time steps
+            % Initialize the target positions for all traj time steps
             %   Accelerate target randomly
             %   Draw random curves for each target
-            %   Avoid "collisions"
+            %   ToDo: Avoid "collisions"
             %   Plot the trajectories in a live animation
             %
             
@@ -234,14 +236,23 @@ classdef TrajectoryPlanner
             end
             
             
+            %% Radar Ego-Vehicle Trajectory
+            rPos = zeros(3, floor(Szduration/tstep));   % xyz positions
+            rVel = zeros(3, floor(Szduration/tstep));   % xyz velocities
+            %rPos(:,3) = fmcw.height;
+            for t = 1:floor(Szduration/tstep)
+                [posr, velr, ~] = fmcw.MSradarplt(tstep, [0;0;0]); % moving with constant speed, a=0
+                rPos(:,t) = posr;
+                rVel(:,t) = velr;
+            end
             
             
             %% Write to trajectory object
             obj.velocity = v;
             obj.heading = dir;
             obj.trajectory = mapPos;
-            
-            
+            obj.rtrajectory = rPos;            
+            obj.rvelocity = rVel;
             
             
             if obj.plotTraj && sz(1)>0
@@ -271,7 +282,7 @@ classdef TrajectoryPlanner
         
         
         
-        function [Targets, Labels] = move_TrajectoryPlanner(obj, t, Targets, egoMotion)
+        function [Targets, Labels, rPlt] = move_TrajectoryPlanner(obj, t, Targets, egoMotion)
             % Update target objects' positions and headings for each timestep
             %   obj.trajectory:         xy Positions for each time step t
             %   obj.heading:            heading angle for each time step t
@@ -350,6 +361,9 @@ classdef TrajectoryPlanner
 
             end
 
+            
+            %% Radar Movement
+            rPlt = [obj.rtrajectory(:,t), obj.rvelocity(:,t)];
         end
         
         

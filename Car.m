@@ -112,7 +112,7 @@ classdef Car
         
         
         %% Generate Point Modell with RCS
-        function obj = generateBackscatterTarget(obj,fmcw)
+        function obj = generateBackscatterTarget(obj,fmcw,rPos)
             %   For current measurement setup, generate the Point Modell
             %   with corresponding RCS. Consider visability, surface
             %   propagation, 
@@ -362,7 +362,7 @@ classdef Car
             fullContour = Contour;
             
             %Find Range and Azimuth Coverage
-            azi = atand(Contour(:,2)./Contour(:,1));
+            azi = atand((Contour(:,2)-rPos(2))./(Contour(:,1)-rPos(1)));
             obj.aziCoverage = round(min(azi)):round(max(azi));
             obj.rCoverage = zeros(size(obj.aziCoverage));
             for a = obj.aziCoverage
@@ -372,10 +372,10 @@ classdef Car
                     searchAngle = searchAngle+1;
                     selectAzi = Contour(azi<a+0.5*searchAngle & azi>a-0.5*searchAngle,:);
                 end
-                minR = min(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)); %find min Contour Point Range for corresponding azi
-                if minR < 0 && max(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)) < 0
+                minR = min(sqrt((selectAzi(:,1)-rPos(1)).^2+(selectAzi(:,2)-rPos(2)).^2)); %find min Contour Point Range for corresponding azi
+                if minR < 0 && max(sqrt((selectAzi(:,1)-rPos(1)).^2+(selectAzi(:,2)-rPos(2)).^2)) < 0
                     minR = (1+size(fmcw.rangeBins,2))*fmcw.dR; %Target behind Radar and not visible
-                elseif minR < 0 && max(sqrt(selectAzi(:,1).^2+selectAzi(:,2).^2)) > 0
+                elseif minR < 0 && max(sqrt((selectAzi(:,1)-rPos(1)).^2+(selectAzi(:,2)-rPos(2)).^2)) > 0
                     minR = fmcw.dR; % Target right in front of Radar, partly behind
                 end
                 obj.rCoverage(a-obj.aziCoverage(1)+1) = minR; 

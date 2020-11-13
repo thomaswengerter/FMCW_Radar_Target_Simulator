@@ -27,7 +27,8 @@ fmcw = fmcw.init_RDmap(); %Initialize FMCW radar object and environment
 fmcw = fmcw.generateChirpSequence(); %Generate chirp waveform, initialize fmcw.chirps
 fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.antPattern
 fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
-
+rPlt = zeros(3,2);
+rPlt(3,1) = fmcw.height;
 
 % Set dictionary to save results
 SimDataPath = 'SimulationData/';
@@ -71,7 +72,7 @@ parfor target = 1:Pedestrians
     azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
 
     %Model Radar Signal for selected Target
-    [sb,~] = modelSignal(ped, 1, [], fmcw);
+    [sb,~] = modelSignal(ped, 1, [], rPlt, fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     pRD = fmcw.RDmap(sbc);
@@ -108,7 +109,8 @@ for target = 1:Bicycles
     bike.vel = randvel; %m/s
     bike.heading = heading; %degrees, from x-axis
 
-    bike = bike.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
+    rPos = [0;0;fmcw.height];
+    bike = bike.generateBackscatterTarget(fmcw, rPos); %Generate backscattering points with RCS
 
     
     % MATLAB phased Toolbox Bicyclist
@@ -139,7 +141,7 @@ for target = 1:Bicycles
     azi = atand(bike.yPos/bike.xPos); 
     
     %Model Radar Signal for selected Target
-    [sb,~] = modelSignal(bike, 2, [],fmcw);
+    [sb,~] = modelSignal(bike, 2, [], rPlt, fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     bRD = fmcw.RDmap(sbc);
@@ -183,10 +185,11 @@ parfor target = 1:Cars
     targetV = cosd(relangle)*car.vel; %radial velocity
     azi = atand(car.yPos/car.xPos);
 
-    car = car.generateBackscatterTarget(fmcw); %Generate backscattering points with RCS
+    rPos = [0;0;fmcw.height];
+    car = car.generateBackscatterTarget(fmcw,rPos); %Generate backscattering points with RCS
     
     
-    [sb,~] = modelSignal(car, 3+car.typeNr, [], fmcw);
+    [sb,~] = modelSignal(car, 3+car.typeNr, [], rPlt, fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     cRD = fmcw.RDmap(sbc);
@@ -235,7 +238,7 @@ end
 fprintf('Simulate empty spectra...')
 parfor target = 1:NoTarget
     %Simulate Noise
-    [sb,~] = modelSignal([], [], [], fmcw);
+    [sb,~] = modelSignal([], [], [], rPlt, fmcw);
     sbn = fmcw.addGaussNoise(sb);
     sbc = fmcw.addStaticClutter(sbn);
     nRD = fmcw.RDmap(sbc);
