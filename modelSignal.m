@@ -77,8 +77,8 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             %% Obstruction Map
             if ~isempty(map)
                 %Check visibility on map
-                ridx = ceil(sqrt(post(1,:).^2+post(2,:).^2)./fmcw.dR);
-                azi = round(atand(post(2,:)./post(1,:)));
+                ridx = ceil(sqrt((post(1,:)-posr(1)).^2+((post(2,:)-posr(2)).^2))./fmcw.dR);
+                azi = round(atand((post(2,:)-posr(2))./(post(1,:)-posr(1))));
                 targetheight = target.Height; %height of pedestrian/car
                 
                 CoveredFilter = zeros(size(azi));
