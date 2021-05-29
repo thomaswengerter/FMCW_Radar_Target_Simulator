@@ -49,9 +49,9 @@ end
 
 fprintf('Simulate Pedestrians...\n ')
 parfor target = 1:Pedestrians
-    ped = backscatterPedestrian;
-    ped.Height = 1+rand()*1.3; % [1.0m, 2.3m]
-    ped.WalkingSpeed = rand()* 1.4*ped.Height; % 
+    ped = Pedestrian;
+    ped.Height = 1+rand()*1.1; % [1.0m, 2.1m]   % ÄNDERUNG
+    ped.WalkingSpeed = (1+ rand()* 0.4) *ped.Height; % 
     ped.OperatingFrequency = fmcw.f0;
     ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
     randrange = rand()*0.9*fmcw.rangeBins(end);
