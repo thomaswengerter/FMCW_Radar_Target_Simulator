@@ -21,7 +21,7 @@ function [sb,obstruction] = modelBasebandSignal(target, targetID, map, rPlt, fmc
 
 %obstruction factor if target points are covered
 obstruction = 0;
-
+sb = zeros(fmcw.K,fmcw.L, fmcw.RXant);
 
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
@@ -42,33 +42,18 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
         velr = rPlt(:,2);
 
         %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
-        if targetID >= 3 % Vehicle
+        
+        % Restore all Reflection Points and move model one timestep
+        if targetID>=3 %Vehicle
             target.CarTarget.release();
-            target = restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
-            [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
-            %boolidx = round(rand(1,size(post,2))-0.4);
-            %target = target.release(boolidx, fmcw.c0, fmcw.f0);
-            %post(:,boolidx>0) = [];
-            %velt(:,boolidx>0) = [];
-            %axt(:,:,boolidx>0) = [];
-        elseif targetID == 2 % Bicycle
+        elseif targetID == 2 %Bicycle
             target.BicyclistTarget.release();
-            target = restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
-            [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move bike
-            %target.release();
-            %[post,velt,axt] = move(target,tsamp,target.InitialHeading); % move bike
-            % Reduce amount of scatterers randomly
-            %boolidx = round(rand(1,size(post,2))+0.4);
-            %post(:,boolidx>0) = [];
-            %velt(:,boolidx>0) = [];
         else %Pedestrian
-            %target.release()
-            [post,velt,axt] = move(target,tsamp,target.InitialHeading); % move ped
-            %boolidx = round(rand(1,size(post,2)));
-            %post(:,boolidx>0) = [];
-            %velt(:,boolidx>0) = [];
-            %axt(:,:,boolidx>0) = [];
+            target.PedestrianTarget.release();
         end
+        target = restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
+        [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
+            
 
         %% Obstruction Map
         if ~isempty(map)
@@ -115,7 +100,6 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             CoveredFilter = CoveredFilter + (mask>0.5);
 
 
-
             % Filter covered Scatterers
             if sum(CoveredFilter, 'all')>0
                 obstruction = 1; % some Target points are obstructed
@@ -126,28 +110,13 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 elseif sum(CoveredFilter, 'all')>(length(post)/2)
                     obstruction = 2; % more than 1/2 of the target points are obstructed
                 end
-                if targetID>=3 % Vehicle
-                    post(:,CoveredFilter>=1) = [];
-                    velt(:,CoveredFilter>=1) = [];
-                    axt(:,:,CoveredFilter>=1) = [];
-                    target = RemoveHiddenScatterers(target, CoveredFilter, fmcw.c0, fmcw.f0);
-                elseif targetID == 2 % Bicycle
-                    post(:,CoveredFilter>=1) = [];
-                    velt(:,CoveredFilter>=1) = [];
-                    axt(:,:,CoveredFilter>=1) = [];
-                    target = RemoveHiddenScatterers(target, CoveredFilter, fmcw.c0, fmcw.f0);
-%                         post(:,CoveredFilter>=1) = [];
-%                         velt(:,CoveredFilter>=1) = [];
-                else % Pedestrian
-                    % Does not work for backscatterPedestrian Object
-                    %post(:,CoveredFilter>=1) = [];
-                    %velt(:,CoveredFilter>=1) = [];
-                    %axt(:,:,CoveredFilter>=1) = [];
-                end
-
-
+                post(:,CoveredFilter>=1) = [];
+                velt(:,CoveredFilter>=1) = [];
+                axt(:,:,CoveredFilter>=1) = [];
+                target = RemoveHiddenScatterers(target, CoveredFilter, fmcw.c0, fmcw.f0);
             end
         end
+        
 
         %% Reflect Signal from Scatterers
         shape = size(post);
@@ -178,19 +147,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             elseif targetID == 2 %Bicycle
                 RCS = target.BicyclistTarget.MeanRCS;
             else %Pedestrian
-                % *** TODO: *** Correct RCS sampling
-                RCSped = load('PedestrianRCS.mat');
-                RCS = zeros(NumScatterers,1);
-                for refPoint = 1:NumScatterers
-                    elev = round(angle(2,refPoint));
-                    azi = round(angle(1,refPoint));
-                    if elev<-90 || elev>90
-                        error('Invalid elevation for Pedestrian reflection point')
-                    elseif azi<-180 || azi>180
-                        error('Invalid azimuth for Pedestrian reflection point')
-                    end
-                    RCS(refPoint) = RCSped.RCSped(elev+91, azi+181, refPoint);
-                end
+                RCS = target.PedestrianTarget.MeanRCS;
             end
 
             % Radar Equation for received Power (RCS)
@@ -201,13 +158,12 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             %             fR = - fmcw.sweepBw/fmcw.chirpTime * 2/fmcw.c0 *range;
             %             fd = -fmcw.f0 * 2/fmcw.c0 * 0;
             %             phase = fmcw.f0*2/fmcw.c0*range;
-            sb = zeros(fmcw.K,fmcw.L, fmcw.RXant);
 
             rangeIdxMat = transpose(meshgrid(0:fmcw.K-1, 1:fmcw.L)); %Matrix 0:K Samples(time) in L (Chirps) columns
             dopplerIdxMat = meshgrid(0:fmcw.L-1, 1:fmcw.K); %Matrix 0:L in K lines
 
             for target = 1:NumScatterers
-                azimut = rand()*180-90; % set random incident angle for static clutter
+                azimut = angle(1,target); % incident angle for reflection point
                 for dR = 0 %-fmcw.dR:fmcw.dR:+fmcw.dR
                     %for v = -fmcw.dV:fmcw.dV:fmcw.dV %Optional to add some N
                     for dv = 0

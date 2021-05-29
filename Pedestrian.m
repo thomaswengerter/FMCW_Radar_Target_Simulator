@@ -16,8 +16,8 @@ classdef Pedestrian
         width = []; % width
         length = []; % length
         Height = []; % height
-        frameHeight = []; %frame height
-        rTire = []; %radius of tire
+        StepLength = []; % distance covered by one step
+        StepDuration = []; % duration of one step
         RCS = []; %RCS real measurement data
         
         ReceptionAngle = 180; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
@@ -99,7 +99,6 @@ classdef Pedestrian
             
             Contour = zeros(12,3);
             %Contour = [xRefPoint, yRefPoint, zRefPoint]
-            zrad = rPos(3);
             
             
             %FR/FL
@@ -123,15 +122,15 @@ classdef Pedestrian
             Contour(8,:) =  [obj.StepLength/4.5, obj.width/2, obj.Height*0.65];
             
             %SR/SL
-            Contour(9,:)  = [0, obj.width/2, obj.Height*0.79];
+            Contour(9,:)  = [0, -obj.width/2, obj.Height*0.79];
             Contour(10,:) = [0, obj.width/2, obj.Height*0.79];
             
             %C/H
             Contour(11,:) = [0, 0, obj.Height*0.7];
             Contour(12,:) = [0, 0, obj.Height*0.95];
             
-            Contour(:,1) += obj.xPos;
-            Contour(:,2) += obj.yPos;
+            Contour(:,1) = Contour(:,1) + obj.xPos;
+            Contour(:,2) = Contour(:,2) + obj.yPos;
             
             % Transfer to global Coordinates
             [~,angl] = Sphere(obj, obj.xPos, obj.yPos);
@@ -162,8 +161,8 @@ classdef Pedestrian
             %--------------------------------------------------------------
             % Micro-Doppler Velocities
             % Describe Walking Movements
-            walkVelo = zeros(12,ceil(obj.StepDuration/fmcw.ChirpInterval));
-            t = 0:fmcw.ChirpInterval:obj.StepDuration;
+            walkVelo = zeros(12,ceil(obj.StepDuration/fmcw.chirpInterval));
+            t = 0:fmcw.chirpInterval:obj.StepDuration;
             %FR
             walkVelo(1,:) = 2.5*obj.WalkingSpeed* sin(2*pi*t/(obj.StepDuration));
             walkVelo(1,walkVelo(1,:)<0) = 0;
@@ -186,7 +185,7 @@ classdef Pedestrian
             walkVelo(9:end,:) = obj.WalkingSpeed;
             
             
-            walkVelo3 = zeros(12,2,size(walkVelo,2))
+            walkVelo3 = zeros(12,2,size(walkVelo,2));
             for i = 1:size(walkVelo3,1)
               walkVelo3(i,1,:) =  walkVelo(i,:) *cos(DOA(i));
               walkVelo3(i,2,:) =  walkVelo(i,:) *sin(DOA(i));
@@ -233,8 +232,8 @@ classdef Pedestrian
             % abs(RCS) for this viewing angle is sampled from measurements
             %
             
-            
-            obj.RCSsigma = relRCS* 10^(RCSdBsm/10); %(/30 for measurement) in square meters
+            totalRCSdBsm = -6;
+            obj.RCSsigma = relRCS* 10^(totalRCSdBsm/10); %(/30 for measurement) in square meters
            
             
             %--------------------------------------------------------------
@@ -250,13 +249,13 @@ classdef Pedestrian
             
             
             % Collect all Car Scattering Points
-            meastime = 0:fmcw.ChirpInterval:obj.StepDuration;
-            obj.PedestrianTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma,...
+            meastime = 0:fmcw.chirpInterval:obj.StepDuration;
+            obj.PedestrianTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma.',...
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
             
             CustomTrajectory = zeros(length(meastime), 4, size(Contour,1)); % t, x(t), y(t), z(t)
             %CustomTrajectory(:,3,:) = repmat(Contour(:,3)', length(meastime), 1);
-            CustomTrajectory(1,2:end,:,:) = Contour;
+            CustomTrajectory(1,2:end,:,:) = Contour.';
             CustomTrajectory(1,1,:,:) = 0;
             for t = 2:length(meastime)
                 CustomTrajectory(t,1,:,:) = meastime(t);
@@ -265,8 +264,8 @@ classdef Pedestrian
                 CustomTrajectory(t,4,:) = Contour(:,3);
             end  
             obj.TargetPlatform = phased.Platform('InitialPosition',[Contour(:,1)'; Contour(:,2)'; Contour(:,3)'], ...
-                    'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*obj.vel*ones(size(Contour(:,1)))';...
-                    sind(obj.heading)*obj.vel*ones(size(Contour(:,1)))'; ...
+                    'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*obj.WalkingSpeed*ones(size(Contour(:,1)))';...
+                    sind(obj.heading)*obj.WalkingSpeed*ones(size(Contour(:,1)))'; ...
                     zeros(size(Contour(:,1)'))], ...
                     'CustomTrajectory', CustomTrajectory,...
                     'MotionModel', 'Custom');
@@ -280,7 +279,7 @@ classdef Pedestrian
             % Calculates the current target position and velocity after 
             % moving the platform for a duration tsamp.
             tsamp = mod(tsamp, obj.StepDuration);
-            [post,velt,axt] = obj.TargetPlatform(tsamp, A);
+            [post,velt,axt] = obj.TargetPlatform(tsamp);
         end
         
         
@@ -303,14 +302,14 @@ classdef Pedestrian
             % points
             RCSsig = obj.RCSsigma;
             RCSsig(bool>0) = [];
-            obj.PedestrianTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', RCSsig,...
+            obj.PedestrianTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', RCSsig.',...
                     'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
         end
         
         
         %% Restore Car Target Object
         function obj = restoreReflectionPoints(obj, fmcwc0, fmcwf0)
-            obj.PedestrianTarget = phased.RadarTarget('Model', 'Nonfluctuating','MeanRCS', obj.RCSsigma,...
+            obj.PedestrianTarget = phased.RadarTarget('Model', 'Nonfluctuating','MeanRCS', obj.RCSsigma.',...
                     'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
         end
     end

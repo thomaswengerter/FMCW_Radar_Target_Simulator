@@ -222,8 +222,8 @@ classdef TrajectoryPlanner
 %                     mapPos(i,1,:) = Targets{i,2}.InitialPosition(1:2);
 %                     dir(i,:) = Targets{i,2}.InitialHeading + dheading(i,1);
                 elseif strcmp(Targets{i,1}(1:3), 'Ped')
-                    mapPos(i,1,:) = Targets{i,2}.InitialPosition(1:2);
-                    dir(i,:) = Targets{i,2}.InitialHeading + dheading(i,1);
+                    mapPos(i,1,:) = [Targets{i,2}.xPos, Targets{i,2}.yPos];
+                    dir(i,:) = Targets{i,2}.heading + dheading(i,1);
                 end
 
                 for t = 2:floor(Szduration/tstep)
@@ -298,18 +298,19 @@ classdef TrajectoryPlanner
             for i = 1:sz(1)
                 % Update target position to next sample
                 if strcmp(Targets{i,1}(1:3), 'Ped') 
-                    Targets{i,2}.InitialPosition(1:2) = obj.trajectory(i,t,:);
-                    Targets{i,2}.InitialHeading = obj.heading(i,t);
+                    Targets{i,2}.xPos = obj.trajectory(i,t,1);
+                    Targets{i,2}.yPos = obj.trajectory(i,t,2);
+                    Targets{i,2}.heading = obj.heading(i,t);
                     Targets{i,2}.WalkingSpeed = obj.velocity(i,t);
                     
                     % Calculate label
                     Labels{i,1} = Targets{i,1};
                     %targetR: Range (radial dist. from radar to target)
                     %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
-                    targetR = sqrt(Targets{i,2}.InitialPosition(1)^2+Targets{i,2}.InitialPosition(2)^2);
-                    targetV = +Targets{i,2}.WalkingSpeed*cos(Targets{i,2}.InitialHeading/360*2*pi);
-                    azi = atand(Targets{i,2}.InitialPosition(2)/Targets{i,2}.InitialPosition(1));
-                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.InitialPosition(1), Targets{i,2}.InitialPosition(2), 0.65, 0.5, Targets{i,2}.InitialHeading, 0];
+                    targetR = sqrt(Targets{i,2}.xPos^2+Targets{i,2}.yPos^2);
+                    targetV = +Targets{i,2}.WalkingSpeed*cos(Targets{i,2}.heading/360*2*pi);
+                    azi = atand(Targets{i,2}.yPos/Targets{i,2}.xPos);
+                    Labels{i,2} = [targetR, targetV, azi, egoMotion, Targets{i,2}.xPos, Targets{i,2}.yPos, 0.65, 0.5, Targets{i,2}.heading, 0];
                     
                     
                     
