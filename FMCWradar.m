@@ -274,7 +274,7 @@ classdef FMCWradar
             dopplerIdxMat = meshgrid(0:obj.L-1, 1:obj.K); %Matrix 0:L in K lines
 
             for target = 1:statTarg
-                azimut = rand()*180-90;
+                azimut = rand()*180-90; % set random incident angle for static clutter
                 for R = -obj.dR:obj.dR:+obj.dR
                     %for v = -obj.dV:obj.dV:obj.dV %Optional to add some N
                     for v = 0

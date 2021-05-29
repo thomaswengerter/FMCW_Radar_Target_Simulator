@@ -723,12 +723,13 @@ classdef Car
             % Reflect the signal xtrans from the scattering points of the
             % target object. Angle is not required here, but included to
             % simplify automation.
-            if obj.CarTarget.Model == 'Nonfluctuating'
+            if strcmp(obj.CarTarget.Model, 'Nonfluctuating')
                 RXsig = obj.CarTarget(xtrans);
             else
             	RXsig = obj.CarTarget(xtrans, true); %update RCS with Swerling2
             end
         end
+        
         
         
         %% Release Car Target Object

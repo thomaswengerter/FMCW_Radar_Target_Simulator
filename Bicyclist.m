@@ -579,7 +579,7 @@ classdef Bicyclist
             % Reflect the signal xtrans from the scattering points of the
             % target object. Angle is not required here, but included to
             % simplify automation.
-            if obj.BicyclistTarget.Model == 'Nonfluctuating'
+            if strcmp(obj.BicyclistTarget.Model, 'Nonfluctuating')
                 RXsig = obj.BicyclistTarget(xtrans);                
             else
                 RXsig = obj.BicyclistTarget(xtrans, true);
