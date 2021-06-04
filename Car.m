@@ -33,7 +33,6 @@ classdef Car
         rCoverage = []; %Range coverage
         
         RCSsigma = []; %RCS of individual backscatterers
-        InitialHeading = []; %only Spaceholder for move() function call!
         Acceleration = []; %Acceleration for all move() steps
         N = []; %final Number of Scattering points
         TargetPlatform = []; %target platform
@@ -689,11 +688,11 @@ classdef Car
                     'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*Scatterer(:,3)', cosd(obj.heading).*wheelScatterer(:,3)';...
                     sind(obj.heading)*Scatterer(:,3)', sind(obj.heading).*wheelScatterer(:,3)'; ...
                     zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
-                    'Acceleration', [zeros(size(Scatterer(:,3)')), cosd(obj.heading).*wheelAcceleration(:,1)';...
-                    zeros(size(Scatterer(:,3)')), sind(obj.heading).*wheelAcceleration(:,1)'; ...
-                    zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
                     'MotionModel', 'Acceleration', 'AccelerationSource', 'Input port');
-            
+                    % 'Acceleration', [zeros(size(Scatterer(:,3)')), cosd(obj.heading).*wheelAcceleration(:,1)';...
+                    % zeros(size(Scatterer(:,3)')), sind(obj.heading).*wheelAcceleration(:,1)'; ...
+                    % zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
+                    
             % Parameters for Wheel Point Acceleration (TargetPlatform)
             obj.Acceleration = wheelAcceleration;
             obj.N = size(Scatterer(:,1),1)+size(wheelScatterer(:,1),1); %Num of reflector Points in Car Target
@@ -702,7 +701,7 @@ classdef Car
         
         
         %% Move Target Platform
-        function [post,velt,axt, obj] = move(obj, tsamp, ~)
+        function [post,velt,axt, obj] = move(obj, tsamp)
             % Calculates the current target position and velocity after 
             % moving the platform for a duration tsamp.
             lenContour = obj.N-size(obj.Acceleration(:,1),1);

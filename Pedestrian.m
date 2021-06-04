@@ -30,7 +30,6 @@ classdef Pedestrian
         leakingRatio = []; %Transparency
         
         RCSsigma = -6; %average total RCS of Pedestrians
-        InitialHeading = []; %only Spaceholder for move() function call!
         Acceleration = []; %Acceleration for all move() steps
         N = []; %final Number of Scattering points
         TargetPlatform = []; %target platform
@@ -263,19 +262,20 @@ classdef Pedestrian
                 CustomTrajectory(t,3,:) = squeeze(CustomTrajectory(t-1,3,:))+ squeeze(walkVelo3(:,2,t)*fmcw.chirpInterval);
                 CustomTrajectory(t,4,:) = Contour(:,3);
             end  
-            obj.TargetPlatform = phased.Platform('InitialPosition',[Contour(:,1)'; Contour(:,2)'; Contour(:,3)'], ...
-                    'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*obj.WalkingSpeed*ones(size(Contour(:,1)))';...
-                    sind(obj.heading)*obj.WalkingSpeed*ones(size(Contour(:,1)))'; ...
-                    zeros(size(Contour(:,1)'))], ...
+            obj.TargetPlatform = phased.Platform(...
+                    'OrientationAxesOutputPort',true,...
                     'CustomTrajectory', CustomTrajectory,...
                     'MotionModel', 'Custom');
-            
+                    % 'InitialPosition',[Contour(:,1)'; Contour(:,2)'; Contour(:,3)'], 
+                    % 'InitialVelocity', [cosd(obj.heading)*obj.WalkingSpeed*ones(size(Contour(:,1)))';...
+                    %sind(obj.heading)*obj.WalkingSpeed*ones(size(Contour(:,1)))'; ...
+                    %zeros(size(Contour(:,1)'))], 
         end
         
         
         
         %% Move Target Platform
-        function [post,velt,axt, obj] = move(obj, tsamp, ~)
+        function [post,velt,axt, obj] = move(obj, tsamp)
             % Calculates the current target position and velocity after 
             % moving the platform for a duration tsamp.
             tsamp = mod(tsamp, obj.StepDuration);

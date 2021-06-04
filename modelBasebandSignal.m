@@ -52,7 +52,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             target.PedestrianTarget.release();
         end
         target = restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
-        [post,velt,axt,target] = move(target,tsamp,target.InitialHeading); % move car
+        [post,velt,axt,target] = move(target,tsamp); % move target
             
 
         %% Obstruction Map
@@ -112,7 +112,9 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
                 end
                 post(:,CoveredFilter>=1) = [];
                 velt(:,CoveredFilter>=1) = [];
-                axt(:,:,CoveredFilter>=1) = [];
+                if ndims(axt) == 3
+                    axt(:,:,CoveredFilter>=1) = [];
+                end
                 target = RemoveHiddenScatterers(target, CoveredFilter, fmcw.c0, fmcw.f0);
             end
         end
