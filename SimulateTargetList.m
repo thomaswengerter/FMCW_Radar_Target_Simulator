@@ -36,12 +36,13 @@ close all
 clear
 
 %% Target List Simulation
+tic
 global c_0;
 c_0 = 299792458;
 
-plotAntennas = []; %list indices of RX antenna elements to be plotted in RD map
-Szenarios = 100; % SET NUMBER OF SZENARIOS
-duration = 2; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
+plotAntennas = []; % List indices of RX antenna elements to be plotted in RD map [0: plot RD map, (1:8): Plot each antenna element, []: No Plot]
+Szenarios = 50; % SET NUMBER OF SZENARIOS
+duration = 0.5; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
 
 %% Setup directories to save results
 SimDataPath = 'SimulationData/';
@@ -72,7 +73,7 @@ tstep = fmcw.chirpsCycle*fmcw.chirpInterval; %duration of one radar measurement 
 for meas = 1:Szenarios
     status = mkdir([SimDataPath, 'Szenario', num2str(meas+ file_offset)]);
     fprintf('Simulate Szenario %i/%i...\n', meas, Szenarios)
-    %% I. Initialize Targets in this Szenario
+    %% Targets in this Szenario
     % Select random number of targets in this szenario
     checksum = 0;
     while checksum == 0
@@ -81,34 +82,33 @@ for meas = 1:Szenarios
         Cars = floor(2.3*rand());
         checksum = Pedestrians+Bicycles+Cars;
     end
+    
+    % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
+    %Labels = {}; %Collect all Labels in struct
     Targets = cell(Pedestrians+Bicycles+Cars,2); %Collect all Targets in struct
     Tidx = 0;
-    
-    
-    %% I.1 Pedestrian Target
+    %% Pedestrian Target
     for target = 1:Pedestrians
         Tidx = Tidx+1;
-        ped = backscatterPedestrian;
-        ped.Height = 1+rand()*1.3; % [1.0m, 2.3m]
-        ped.WalkingSpeed = rand()* 1.4*ped.Height; % 
-        ped.OperatingFrequency = fmcw.f0;
-        ped.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
+        ped = Pedestrian;
+        ped.Height = 1.3+rand(); % [1.0m, 2.3m]
+        ped.WalkingSpeed = 1+0.7*rand(); %rand()* 1.4*ped.Height 
         randrange = rand()*0.9*fmcw.rangeBins(end);
         randazi = (rand()-0.5)*90;
         randposx = cosd(randazi)*randrange;
         randposy = sind(randazi)*randrange;
-        ped.InitialPosition = [randposx; randposy; 0]; %add random posx posy
-        %ped.InitialPosition = [5; 0; 0];
+        ped.xPos = randposx; %add random posx posy
+        ped.yPos = randposy;
         heading = rand()*360-180;
-        %heading = 0;
-        ped.InitialHeading = heading; %in degree
+        ped.heading = heading; %in degree, heading along x from x=5 to x=7
+        ped = ped.initPedestrian();
 
         %Ground Truth
         %targetR: Range (radial dist. from radar to target)
-        %targetV: radial Velocity <0 approaching, >0 moving away from radar
-        targetR = sqrt(ped.InitialPosition(1)^2+ped.InitialPosition(2)^2);
-        targetV = +ped.WalkingSpeed*cos(ped.InitialHeading/360*2*pi);
-        azi = atand(ped.InitialPosition(2)/ped.InitialPosition(1));
+        %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
+        targetR = sqrt(ped.xPos^2+ped.yPos^2);
+        targetV = +ped.WalkingSpeed*cos(ped.heading/360*2*pi);
+        azi = atand(ped.yPos/ped.xPos);
 
         %Label output and save
         %label = [targetR, targetV, azi, fmcw.egoMotion, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading, 0];
@@ -118,7 +118,8 @@ for meas = 1:Szenarios
     end
 
 
-    %% I.2 Bycicle Traget
+
+    %% Bycicle Traget
     for target = 1:Bicycles
         Tidx = Tidx+1;
         bike = Bicyclist;
@@ -127,7 +128,7 @@ for meas = 1:Szenarios
         randazi = (rand()-0.5)*90;
         randposx = cosd(randazi)*randrange;
         randposy = sind(randazi)*randrange;
-        randvel = rand()*10; %10m/s top speed
+        randvel = 1.5+8*rand(); %10m/s top speed
         heading = rand()*360-180;
         bike.xPos = randposx; % x dist from radar
         bike.yPos = randposy; % y dist from radar
@@ -142,7 +143,7 @@ for meas = 1:Szenarios
         azi = atand(bike.yPos/bike.xPos);
 
         rPos = [0;0;fmcw.height];
-        bike = bike.generateBackscatterTarget(fmcw,rPos); %Generate backscattering points with RCS
+        bike = bike.generateBackscatterTarget(fmcw, rPos); %Generate backscattering points with RCS
 
         %Label output and save
         %label =  [targetR, targetV, azi, fmcw.egoMotion, bike.xPos, bike.yPos, bike.width, bike.length, heading, 0];
@@ -151,50 +152,11 @@ for meas = 1:Szenarios
         Targets{Tidx,2} = bike;
     end
 
-%% Bicycle Target with MATLAB phased Toolbox
-%     for target = 1:Bicycles
-%         Tidx = Tidx+1;
-%         bike = backscatterBicyclist;
-%         Spokes = [20, 24, 28, 32, 36];
-%         bike.NumWheelSpokes = Spokes(ceil(rand()*length(Spokes)));
-%         bike.GearTransmissionRatio = 1.5; %Ratio of wheel rotations to pedal rotations
-%         bike.OperatingFrequency = fmcw.f0;
-%         randposx = fmcw.rangeBins(end)*rand();
-%         randposy = randposx* 2*(rand()-0.5);
-%         bike.InitialPosition = [randposx;randposy;0];
-%         bike.InitialPosition = [4;2;0];
-%         heading = rand()*360-180;
-%         heading = -90;
-%         bike.InitialHeading = heading; %in degree, heading along x-axis
-%         randspeed = rand()*10; %max 10m/s
-%         randspeed = 6;
-%         bike.Speed = randspeed; %m/s
-%         bike.Coast = false; %Padeling movements?
-%         bike.PropagationSpeed = fmcw.c0; %propagation speed of radar rays in air
-%         % bike.AzimutAngles = fmcw.azimut; %default 77GHz cyclist <- use default
-%         % bike.ElevationAngles = fmcw.elevation; %default 77GHz cyclist <- use default
-%         % bike.RCSPattern = fmcw.RCS; %default 77GHz cyclist <- use default
-% 
-%         %Ground Truth
-%         %targetR: Range (radial dist. from radar to target)
-%         %targetV: radial Velocity <0 approaching, targetV>0 moving away from radar
-%         targetR = sqrt(bike.InitialPosition(1)^2+bike.InitialPosition(2)^2);
-%         targetV = +bike.Speed*cos(bike.InitialHeading/360*2*pi);
-%         azi = atand(bike.InitialPosition(2)/bike.InitialPosition(1));
-% 
-%         %Label output and save
-%         %label = [targetR, targetV, azi, fmcw.egoMotion, bike.InitialPosition(1), bike.InitialPosition(2), 0.65, 2, heading, 0];
-%         name = ['Bicycle', num2str(target)];
-%         Targets{Tidx,1} = name;
-%         Targets{Tidx,2} = bike;
-%     end
-
-
-    %% I.3 Car target
+    %% Car target
     for target = 1:Cars
         Tidx = Tidx+1;
         car = Car;
-        car = car.initCar(floor(1.999* rand()));
+        car = car.initCar(0); %floor(1.999* rand())
         randrange = rand()*0.9*fmcw.rangeBins(end);
         randazi = (rand()-0.5)*90;
         randposx = cosd(randazi)*randrange;
@@ -205,7 +167,6 @@ for meas = 1:Szenarios
         car.yPos = randposy; % y dist from radar
         car.vel = randvel; %m/s
         car.heading = heading; %degrees, from x-axis
-
 
         % Calculate label
         relangle = atand(car.yPos/car.xPos)-car.heading; %angle between heading and radial velocity
@@ -223,34 +184,28 @@ for meas = 1:Szenarios
         Targets{Tidx,2} = car;
     end
     
-    
-    
-    %% II. Plan Trajectory of targets
+    %% Plan Trajectory of targets
     Traj = TrajectoryPlanner;
     Traj = init_TrajectoryPlanner(Traj, tstep, duration, Targets, fmcw);
     egoMotion = fmcw.egoMotion;
-        
-    % ParFor each measurement step in this scenario 
-    % total TIME: 'duration', measurement TIME: 'tstep'
+    
+    % ParFor each measurement step in this scenario TIME: 2 SECONDS
     parfor tidx = 1:floor(duration/tstep)
-        %% III. Generate obstruction map for each chirp/time step
-        % Move Targets
+        %% Move Targets
         [MovedTargets, Label, rPlt] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
-        rPos = rPlt(:,1);
+        rPos = rPlt(:,1); %current radar position
         
         sz = size(MovedTargets);        
         for i = 1:sz(1)
-            if strcmp(MovedTargets{i,1}(1:4), 'Vehi') || strcmp(MovedTargets{i,1}(1:3), 'Bic')
-                MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw,rPos); %update car reflection point positions
-            end
+            MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw,rPos); %update car reflection point positions
         end
         
-        % Generate ObstructionMap
+        %% Generate obstruction map for each chirp/time step
         map = generateObstructionMap(MovedTargets, fmcw, rPos);
 
 
-        %% IV. Simulate Baseband Signals
-        %Superpostion of simulated reflection signals in the baseband
+        %% Simulate Baseband Signals
+        %for each target in Targets
         sb = zeros(fmcw.K, fmcw.L, fmcw.RXant); %empty Rx signal
         for i= 1:sz(1)
             Target = MovedTargets{i,2};
@@ -262,7 +217,7 @@ for meas = 1:Szenarios
                 targetID = 3;
             end
             %Model Radar Signal for selected Target
-            [sbTarget, obstruction] = modelSignal(Target, targetID, map, rPlt, fmcw);
+            [sbTarget, obstruction] = modelBasebandSignal(Target, targetID, map, rPlt, fmcw);
             
             %Update Label
             Label{i,2}(end) = obstruction; %set obstruction factor in Label (1:visible, ..., 4: fully hidden)
@@ -282,18 +237,13 @@ for meas = 1:Szenarios
                 Label{i,2}(6) = ty-rPos(2); % yPos
             end
             
-            if targetID == 1
-                % Power correction for Pedestrian
-                sbTarget = sbTarget*3;
-            else
-                % Power correction for Bikes/Vehicles
-                sbTarget = sbTarget/2;  
-            end
+            % Power correction for Bikes/Vehicles
+            sbTarget = sbTarget/2;        
             
             sb =  sb + sbTarget;
         end
 
-        %% V. Add Noise and static Clutter to baseband signal
+        % Add Noise and static Clutter to baseband signal
         sbn = fmcw.addGaussNoise(sb);
         sbc = fmcw.addStaticClutter(sbn);
         RD = fmcw.RDmap(sbc);
@@ -301,9 +251,8 @@ for meas = 1:Szenarios
 
         %DEBUG: Show Noise char over Range
         %plotNoise;
-
         saveMat(RD, Label, ['Szenario', num2str(meas+file_offset)], tidx, SimDataPath)
     end
 end
-
 fprintf('Simulation completed.\n')
+toc
