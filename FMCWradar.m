@@ -49,7 +49,7 @@ classdef FMCWradar
         
         %Initialized in function:   generateChirpSequence(obj)
         Propagation_fs = []; %sampling rate of the modelled signal
-        chirps = []; %object of class phased.FMCWwaveform or phased.LinearFMWaveform
+        chirp = []; %TX signal
         
         %Initialized in function:   generateAntPattern(obj)
         VantPattern = [];
@@ -98,6 +98,7 @@ classdef FMCWradar
             end
         end
         
+        
              
         %% Specify chirp sequence
         function obj = generateChirpSequence(obj)
@@ -109,47 +110,39 @@ classdef FMCWradar
             showplot = false; %for plot, change obj.Propagation_fs
             obj.Propagation_fs = obj.sweepBw; %sampling rate of the modelled prop signal
             
-            
-            %TRIANGLE
-            if strcmp(obj.chirpShape,'TRI')
-                obj.chirps = phased.FMCWWaveform('SampleRate',obj.Propagation_fs,'SweepTime',obj.chirpTime, ...
-                    'SweepBandwidth',obj.sweepBw,...
-                    'SweepDirection', 'Triangle',... 
-                    'SweepInterval', 'Positive', 'NumSweeps', 1);
-            
-            %SAWTOOTH            
-            elseif strcmp(obj.chirpShape,'SAW1') %1 chirp
-                obj.chirps = phased.FMCWWaveform('SampleRate',obj.Propagation_fs,'SweepTime',obj.chirpTime, ...
-                    'SweepBandwidth',obj.sweepBw,...
-                    'SweepDirection', 'Up',...  %SweepDirection Triangle
-                    'SweepInterval', 'Positive', 'NumSweeps', 1);            
-            
+            if obj.chirpShape == 'TRI'
+                %TRIANGLE
+                tup     = (0:obj.K-1) / obj.fs;
+                tdown   = (obj.K:2*obj.K-1) / obj.fs;
+                signal  = zeros(1,2*obj.K);
+                signal(1:obj.K-1)    = exp(1i*2*pi *  obj.sweepBw/2/obj.chirpTime * tup.^2);
+                signal(obj.K:end)    = exp(1i*2*pi * -obj.sweepBw/2/obj.chirpTime * tdown.^2)
+            elseif obj.chirpShape == 'SAW1'
+                %SAWTOOTH    
+                tup     = (0:obj.K-1) / obj.fs;
+                signal  = zeros(1,obj.K);
+                signal               = exp(1i*2*pi *  obj.sweepBw/2/obj.chirpTime * tup.^2);
                 
-            %SAWTOOTH with gap
-            elseif strcmp(obj.chirpShape,'SAWgap')
-                    obj.chirps = phased.LinearFMWaveform('SampleRate',obj.Propagation_fs,...
-                        'SweepBandwidth',obj.sweepBw, 'PulseWidth',obj.chirpTime,...
-                        'DurationSpecification','Pulse width', 'PRF', 1/obj.chirpInterval, ...
-                        'SweepInterval','Positive');
-                    
+            elseif obj.chirpShape == 'SAWgap' 
+                %SAWTOOTH with gap
+                tup     = (0:obj.K-1) / obj.fs;
+                signal  = zeros(1,obj.chirpTime/obj.fs);
+                signal(1:obj.K-1)    = exp(1i*2*pi *  obj.sweepBw/2/obj.chirpTime * tup.^2);
             else
-                fprintf('\n !!Did not recognize chirp sequence!!\n\n')
+                error('\n !!Unknown chirp sequence!!\nChoose from [TRI, SAW1, SAWgap].\n\n')
             end
+            
+            
+            obj.chirp = signal;
                 
             if showplot
                 
                 figure;
                 plot(obj.chirps);
                 figure;
-                fsig = step(obj.chirps); %Samples of FMCW waveform
-                windowlength = 32;
-                noverlap = 16;
-                nfft = 32;
-                spectrogram(fsig,windowlength,noverlap,nfft,obj.chirps.SampleRate,'yaxis') %
+                nfft = obj.ChirpInterval/obj.fs;
+                spectrogram(obj.chirps, nfft, obj.fs) %
                 title('Chirp sequence')
-                
-                error('Show chirp plot and stop...')
-                % Downsample chirp
                 
             end
             
