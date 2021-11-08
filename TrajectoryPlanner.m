@@ -43,9 +43,9 @@ classdef TrajectoryPlanner
                     v(i,:) = ones(1,size(v,2))* Targets{i,2}.vel;
                     eventduration = 4; % acceleration of a vehicle takes ~4s
                     %Vehicle acceleration
-                    events = floor(rand()*Szduration/eventduration+0.3); %number of events possible in Szene
-                    eventTidx = sort(ceil(abs(randn(events,1))/2 * size(acc,2)));   
-                    eventTidx(eventTidx>size(acc,2)) = sort(ceil(rand(events,1) * size(acc,2)));
+                    Nevents = floor(rand()*Szduration/eventduration+0.3); %number of events possible in Szene
+                    eventTidx = sort(ceil(abs(randn(Nevents,1))/2 * size(acc,2)));   
+                    eventTidx(eventTidx>size(acc,2)) = sort(ceil(rand(Nevents,1) * size(acc,2)));
                     for event = 1:length(eventTidx)
                         idx = eventTidx(event);
                         if (mv-v(i,idx))<=0.3*mv
@@ -91,10 +91,10 @@ classdef TrajectoryPlanner
                         end                        
                     end
                     %Vehicle long turn
-                    events = floor(events/2);
-                    %eventTidx = sort(ceil(rand(events,1) * size(dheading,2)));
-                    eventTidx = sort(ceil(abs(randn(events,1))/2 * size(acc,2)));   
-                    eventTidx(eventTidx>size(acc,2)) = sort(ceil(rand(events,1) * size(acc,2)));
+                    Nevents = floor(Nevents/2);
+                    %eventTidx = sort(ceil(rand(Nevents,1) * size(dheading,2)));
+                    eventTidx = sort(ceil(abs(randn(Nevents,1))/2 * size(acc,2)));   
+                    eventTidx(eventTidx>size(acc,2)) = sort(ceil(rand(Nevents,1) * size(acc,2)));
                     for event = 1:length(eventTidx)
                         idx = eventTidx(event);
                         rndeventduration = abs(eventduration + (v(i,idx)/mv-0.5) * rand());
@@ -108,9 +108,9 @@ classdef TrajectoryPlanner
                     v(i,:) = ones(1,size(v,2))* Targets{i,2}.vel;
                     eventduration = 4; % acceleration of a bicycle takes ~6s
                     %Bicycle acceleration
-                    events = floor(rand()*Szduration/eventduration+0.3); %number of events possible in Szene
-                    eventTidx = sort(ceil(abs(randn(events,1))/2 * size(acc,2)));   
-                    eventTidx(eventTidx>size(acc,2)) = sort(ceil(rand(events,1) * size(acc,2)));           
+                    Nevents = floor(rand()*Szduration/eventduration+0.3); %number of events possible in Szene
+                    eventTidx = sort(ceil(abs(randn(Nevents,1))/2 * size(acc,2)));   
+                    eventTidx(eventTidx>size(acc,2)) = sort(ceil(rand(Nevents,1) * size(acc,2)));           
                     for event = 1:length(eventTidx)
                         idx = eventTidx(event);
                         if (mv-v(i,idx))<0.3*mv
@@ -156,10 +156,10 @@ classdef TrajectoryPlanner
                         end                        
                     end
                     %Bicycle long turn
-                    events = floor(events/2);
-                    %eventTidx = sort(ceil(rand(events,1) * size(dheading,2)));
-                    eventTidx = sort(ceil(abs(randn(events,1))/2 * size(acc,2)));   
-                    eventTidx(eventTidx>size(acc,2)) = sort(ceil(rand(events,1) * size(acc,2)));
+                    Nevents = floor(Nevents/2);
+                    %eventTidx = sort(ceil(rand(Nevents,1) * size(dheading,2)));
+                    eventTidx = sort(ceil(abs(randn(Nevents,1))/2 * size(acc,2)));   
+                    eventTidx(eventTidx>size(acc,2)) = sort(ceil(rand(Nevents,1) * size(acc,2)));
                     for event = 1:length(eventTidx)
                         idx = eventTidx(event);
                         rndeventduration = abs(eventduration + (v(i,idx)/mv-0.5) * rand());
@@ -173,8 +173,8 @@ classdef TrajectoryPlanner
                     v(i,:) = ones(1,size(v,2))* Targets{i,2}.WalkingSpeed;
                     eventduration = 2; % acceleration of a pedestrian takes ~2s
                     %Pedestrian acceleration
-                    events = floor(rand()*Szduration/eventduration+0.2); %number of events possible in Szene
-                    eventTidx = sort(ceil(rand(events,1) * size(acc,2)));            
+                    Nevents = floor(rand()*Szduration/eventduration+0.2); %number of events possible in Szene
+                    eventTidx = sort(ceil(rand(Nevents,1) * size(acc,2)));            
                     for event = 1:length(eventTidx)
                         idx = eventTidx(event);
                         if (mv-v(i,idx))<0.5*mv
@@ -199,8 +199,8 @@ classdef TrajectoryPlanner
                         end                        
                     end
                     %Pedestrian long turn
-                    events = floor(events/2);
-                    eventTidx = sort(ceil(rand(events,1) * size(dheading,2)));
+                    Nevents = floor(Nevents/2);
+                    eventTidx = sort(ceil(rand(Nevents,1) * size(dheading,2)));
                     for event = 1:length(eventTidx)
                         idx = eventTidx(event);
                         rndeventduration = abs(eventduration + (v(i,idx)/mv-0.5) * rand());
@@ -237,11 +237,12 @@ classdef TrajectoryPlanner
             
             
             %% Radar Ego-Vehicle Trajectory
+            %   The radar moves along the x-axis
             rPos = zeros(3, floor(Szduration/tstep));   % xyz positions
             rVel = zeros(3, floor(Szduration/tstep));   % xyz velocities
             %rPos(:,3) = fmcw.height;
             for t = 1:floor(Szduration/tstep)
-                [posr, velr, ~] = fmcw.MSradarplt(tstep, [0;0;0]); % moving with constant speed, a=0
+                [posr, velr, axt] = fmcw.move(t*tstep); % moving with constant speed, a=0
                 rPos(:,t) = posr;
                 rVel(:,t) = velr;
             end

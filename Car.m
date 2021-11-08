@@ -20,6 +20,7 @@ classdef Car
         cornerRadius = []; %curve radius of front to sides 
         rTire = []; %radius of tire
         RCS = []; %RCS real measurement data
+        MeanRCS = []; %RCS of scatterers
         
         
         ReceptionAngle = 160; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
@@ -34,9 +35,9 @@ classdef Car
         
         RCSsigma = []; %RCS of individual backscatterers
         Acceleration = []; %Acceleration for all move() steps
-        N = []; %final Number of Scattering points
-        TargetPlatform = []; %target platform
-        CarTarget = []; %target object
+        N = []; %final Number of Scattering points 
+        Scatterer = []; %target platform
+        timestep = []; %Measurement time steps
     end
     
     methods
@@ -431,7 +432,7 @@ classdef Car
                 
                 % Sample Reflection Locations for Contour Point
                 yloc = meany + vary * randn(ReflectionsPerPoint,1);
-                xloc = varx * raylrnd(ones(ReflectionsPerPoint,1));
+                xloc = varx * raylrnd(1, [ReflectionsPerPoint,1]);
                 
                 % Coordinate Transformation
                 [x, y] = toLocal(obj,xloc,yloc, obj.normAngle(Contour(i,3)-180));
@@ -509,7 +510,7 @@ classdef Car
                     % Coordinate Transform in Wheel Center: xi, yi
                     varx = 0.15*1.5; %max around inside 0.3m vehicle body
                     vary = obj.rTire; % ~radius of tire 
-                    xi = varx* raylrnd(ones(ReflectionsPerPoint*obj.WheelReflectionsFactor,1));
+                    xi = varx* raylrnd(1,[ReflectionsPerPoint*obj.WheelReflectionsFactor,1]);
                     yi = vary* randn(ReflectionsPerPoint*obj.WheelReflectionsFactor,1);
        
                     % Sample local velocity in xi-yi-plane
@@ -553,7 +554,7 @@ classdef Car
                     % Coordinate Transform in Wheel Center: xi, yi
                     varx = 0.15; %max around inside 0.3m vehicle body
                     vary = obj.rTire; % ~radius of tire 
-                    xi = varx* raylrnd(ones(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1));
+                    xi = varx* raylrnd(1,[floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1]);
                     yi = vary* randn(floor(ReflectionsPerPoint*obj.WheelReflectionsFactor/2),1);
                     
                     % Sample local velocity in xi-yi-plane
@@ -681,71 +682,50 @@ classdef Car
             
             
             % Collect all Car Scattering Points
-            obj.CarTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma,...
-                    'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
+            obj.MeanRCS = obj.RCSsigma.';
             
-            obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)', wheelScatterer(:,1)'; Scatterer(:,2)',wheelScatterer(:,2)'; Elref', WheelElref'], ...
-                    'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*Scatterer(:,3)', cosd(obj.heading).*wheelScatterer(:,3)';...
+            obj.Scatterer = struct('InitPosition',[Scatterer(:,1)', wheelScatterer(:,1)'; Scatterer(:,2)',wheelScatterer(:,2)'; Elref', WheelElref'], ...
+                    'InitVelocity', [cosd(obj.heading)*Scatterer(:,3)', cosd(obj.heading).*wheelScatterer(:,3)';...
                     sind(obj.heading)*Scatterer(:,3)', sind(obj.heading).*wheelScatterer(:,3)'; ...
-                    zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
-                    'MotionModel', 'Acceleration', 'AccelerationSource', 'Input port');
-                    % 'Acceleration', [zeros(size(Scatterer(:,3)')), cosd(obj.heading).*wheelAcceleration(:,1)';...
-                    % zeros(size(Scatterer(:,3)')), sind(obj.heading).*wheelAcceleration(:,1)'; ...
-                    % zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
+                    zeros(size(Scatterer(:,1)')), zeros(size(wheelScatterer(:,1)'))]);        
                     
             % Parameters for Wheel Point Acceleration (TargetPlatform)
             obj.Acceleration = wheelAcceleration;
             obj.N = size(Scatterer(:,1),1)+size(wheelScatterer(:,1),1); %Num of reflector Points in Car Target
+            obj.timestep = fmcw.chirpInterval;
         end
         
         
         
         %% Move Target Platform
-        function [post,velt,axt, obj] = move(obj, tsamp)
+        function [post,velt,axt] = move(obj, tsamp)
             % Calculates the current target position and velocity after 
-            % moving the platform for a duration tsamp.
+            % moving the platform for a duration tsamp away from the initial position at tsamp=0.
             lenContour = obj.N-size(obj.Acceleration(:,1),1);
-            tstep = 1;
-            A = [zeros(1,lenContour), cosd(obj.heading).*obj.Acceleration(:,tstep)';...
-                    zeros(1,lenContour), sind(obj.heading).*obj.Acceleration(:,tstep)'; ...
-                    zeros(1,lenContour), zeros(size(obj.Acceleration(:,tstep)'))];
-            [post,velt,axt] = obj.TargetPlatform(tsamp, A);
-            obj.Acceleration(:,tstep) = [];
-%             scatter(post(1,:),post(2,:))
-%             hold on;
-%             pause(0.01);
-        end
+            tstep = ceil(tsamp/obj.timestep);    % measurement step
+            acc = [[zeros(1,lenContour), cosd(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)'];...
+                    [zeros(1,lenContour), sind(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)']; ...
+                    [zeros(1,lenContour), zeros(size(obj.Acceleration(:,1)'))]];
+            post = obj.Scatterer.InitPosition + obj.Scatterer.InitVelocity*tsamp + 0.5*acc*tstep^2;
+            velinit  = obj.vel* [cosd(obj.heading), sind(obj.heading), 0];
+            velinit  = repmat(velinit, size(acc,2), 1)';
+            velt = velinit + acc*tstep;
+            axt  = velt/sum(velt);
+        end        
         
         
-        %% Reflect incoming Signal
-        function RXsig = reflect(obj, xtrans, ~)
-            % Reflect the signal xtrans from the scattering points of the
-            % target object. Angle is not required here, but included to
-            % simplify automation.
-            if strcmp(obj.CarTarget.Model, 'Nonfluctuating')
-                RXsig = obj.CarTarget(xtrans);
-            else
-            	RXsig = obj.CarTarget(xtrans, true); %update RCS with Swerling2
-            end
-        end
-        
-        
-        
-        %% Release Car Target Object
+        %% Remove Hidden Scatterers 
         function obj = RemoveHiddenScatterers(obj, bool, fmcwc0, fmcwf0)
-            % Call radar target release function for changes of reflection
-            % points
+            % Set RCS to 0 for hidden Scatterers
             RCSsig = obj.RCSsigma;
-            RCSsig(bool>0) = [];
-            obj.CarTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', RCSsig,...
-                    'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
+            RCSsig(bool>0) = 0;
+            obj.MeanRCS = RCSsig.';
         end
         
         
         %% Restore Car Target Object
         function obj = restoreReflectionPoints(obj, fmcwc0, fmcwf0)
-            obj.CarTarget = phased.RadarTarget('Model', 'Nonfluctuating','MeanRCS', obj.RCSsigma,...
-                    'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
+            obj.MeanRCS = obj.RCSsigma.';
         end
     end
 end

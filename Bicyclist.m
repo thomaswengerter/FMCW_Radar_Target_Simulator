@@ -20,6 +20,7 @@ classdef Bicyclist
         frameHeight = []; %frame height
         rTire = []; %radius of tire
         RCS = []; %RCS real measurement data
+        MeanRCS = []; %RCS of scatterers
         
         ReceptionAngle = 150; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
         ReflectionsPerContourPoint = 1; % SET THIS PARAMETER FOR RESOLUTION
@@ -35,8 +36,8 @@ classdef Bicyclist
         RCSsigma = []; %RCS of individual backscatterers
         Acceleration = []; %Acceleration for all move() steps
         N = []; %final Number of Scattering points
-        TargetPlatform = []; %target platform
-        BicyclistTarget = []; %target object
+        Scatterer = []; %target platform
+        timestep = []; %Measurement time steps
     end
     
     methods
@@ -539,12 +540,11 @@ classdef Bicyclist
             obj.BicyclistTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma,...
                     'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
                     
-            obj.TargetPlatform = phased.Platform('InitialPosition',[Scatterer(:,1)'; Scatterer(:,2)'; Elref'], ...
-                    'OrientationAxesOutputPort',true, 'InitialVelocity', [cosd(obj.heading)*obj.vel*ones(size(Contour(1:end-4,1)))', ...
+            obj.Scatterer = struct('InitPosition',[Scatterer(:,1)'; Scatterer(:,2)'; Elref'], ...
+                    'InitVelocity', [cosd(obj.heading)*obj.vel*ones(size(Contour(1:end-4,1)))', ...
                     cosd(obj.heading)*pedalingSpeed, cosd(obj.heading).*wheelScatterer(:,3)';...
                     sind(obj.heading)*obj.vel*ones(size(Contour(1:end-4,1)))', sind(obj.heading)*pedalingSpeed, sind(obj.heading).*wheelScatterer(:,3)'; ...
-                    zeros(size(Contour(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
-                    'MotionModel', 'Acceleration', 'AccelerationSource', 'Input port');
+                    zeros(size(Contour(:,1)')), zeros(size(wheelScatterer(:,1)'))]);
                     % 'Acceleration', [zeros(size(Contour(:,3)')), cosd(obj.heading).*wheelAcceleration(:,1)';...
                     % zeros(size(Contour(:,3)')), sind(obj.heading).*wheelAcceleration(:,1)'; ...
                     % zeros(size(Contour(:,1)')), zeros(size(wheelScatterer(:,1)'))], ...
@@ -552,55 +552,40 @@ classdef Bicyclist
             % Parameters for Wheel Point Acceleration (TargetPlatform)
             obj.Acceleration = wheelAcceleration;
             obj.N = size(Scatterer(:,1),1); %Num of reflector Points in Car Target
+            obj.timestep = fmcw.chirpInterval;
         end
         
         
         
         %% Move Target Platform
-        function [post,velt,axt, obj] = move(obj, tsamp)
+        function [post,velt,axt] = move(obj, tsamp)
             % Calculates the current target position and velocity after 
-            % moving the platform for a duration tsamp.
+            % moving the platform for a duration tsamp away from the initial position at tsamp=0.
             lenContour = obj.N-size(obj.Acceleration(:,1),1);
-            tstep = 1;
-            A = [zeros(1,lenContour), cosd(obj.heading).*obj.Acceleration(:,tstep)';...
-                    zeros(1,lenContour), sind(obj.heading).*obj.Acceleration(:,tstep)'; ...
-                    zeros(1,lenContour), zeros(size(obj.Acceleration(:,tstep)'))];
-            [post,velt,axt] = obj.TargetPlatform(tsamp, A);
-            obj.Acceleration(:,tstep) = [];
-%             scatter(post(1,:),post(2,:))
-%             hold on;
-%             pause(0.01);
-        end
-        
-        
-        %% Reflect incoming Signal
-        function RXsig = reflect(obj, xtrans, ~)
-            % Reflect the signal xtrans from the scattering points of the
-            % target object. Angle is not required here, but included to
-            % simplify automation.
-            if strcmp(obj.BicyclistTarget.Model, 'Nonfluctuating')
-                RXsig = obj.BicyclistTarget(xtrans);                
-            else
-                RXsig = obj.BicyclistTarget(xtrans, true);
-            end
-        end
-        
+            tstep = ceil(tsamp/obj.timestep);    % measurement step
+            acc = [[zeros(1,lenContour), cosd(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)'];...
+                    [zeros(1,lenContour), sind(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)']; ...
+                    [zeros(1,lenContour), zeros(size(obj.Acceleration(:,1)'))]];
+            post = obj.Scatterer.InitPosition + obj.Scatterer.InitVelocity*tsamp + 0.5*acc*tstep^2;
+            velinit  = obj.vel* [cosd(obj.heading), sind(obj.heading), 0];
+            velinit  = repmat(velinit, 1, size(acc,1));
+            velt = velinit + acc*tstep;
+            axt  = velt/sum(velt);
+        end        
         
         %% Release Car Target Object
         function obj = RemoveHiddenScatterers(obj, bool, fmcwc0, fmcwf0)
             % Call radar target release function for changes of reflection
             % points
             RCSsig = obj.RCSsigma;
-            RCSsig(bool>0) = [];
-            obj.BicyclistTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', RCSsig,...
-                    'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
+            RCSsig(bool>0) = 0;
+            obj.MeanRCS = RCSsig.';
         end
         
         
         %% Restore Car Target Object
         function obj = restoreReflectionPoints(obj, fmcwc0, fmcwf0)
-            obj.BicyclistTarget = phased.RadarTarget('Model', 'Nonfluctuating','MeanRCS', obj.RCSsigma,...
-                    'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
+              obj.MeanRCS = obj.RCSsigma.';
         end
     end
 end

@@ -29,7 +29,7 @@ obstruction = 0;
 
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
-    xTX = fmcw.MStrx(fmcw.chirps()); % Radar transmitter signal
+    xTX = fmcw.MStrx(fmcw.chirp); % Radar transmitter signal
     
     
     %Target Backscatter

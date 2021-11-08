@@ -31,22 +31,24 @@
 % Coordinate Systems:
 % (x,y) -> x: Radar's line of sight   -> y: 90° to the left from radars LoS
 % -------------------------------------------------------------------------
+pkg load statistics 
+pkg load signal
 
 close all
-clear
+clear all
 
 %% Target List Simulation
 tic
 global c_0;
 c_0 = 299792458;
 
-plotAntennas = []; % List indices of RX antenna elements to be plotted in RD map [0: plot RD map, (1:8): Plot each antenna element, []: No Plot]
-Szenarios = 50; % SET NUMBER OF SZENARIOS
-duration = 0.5; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
+plotAntennas = [0]; % List indices of RX antenna elements to be plotted in RD map [0: plot RD map, (1:8): Plot each antenna element, []: No Plot]
+Szenarios = 1; % SET NUMBER OF SZENARIOS
+duration = 0.017; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
 
 %% Setup directories to save results
 SimDataPath = 'SimulationData/';
-add_files = false;
+add_files = true;
 if ~add_files && exist(SimDataPath(1:end-1),'dir')
     %clear Sim data folder
     rmdir('SimulationData','s');
@@ -67,7 +69,7 @@ fmcw = FMCWradar;
 fmcw = fmcw.init_RDmap(); %Initialize FMCW radar object and environment
 fmcw = fmcw.generateChirpSequence(); %Generate chirp waveform, initialize fmcw.chirps
 fmcw = fmcw.generateAntPattern(); %Generate antenna Pattern, initialize fmcw.antPattern
-fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
+%fmcw = fmcw.setupMeasurement(); %setup all measurement environment objects for 'modelSignal.m'
 tstep = fmcw.chirpsCycle*fmcw.chirpInterval; %duration of one radar measurement cycle
 
 for meas = 1:Szenarios
@@ -82,6 +84,9 @@ for meas = 1:Szenarios
         Cars = floor(2.3*rand());
         checksum = Pedestrians+Bicycles+Cars;
     end
+    Pedestrians = 0;
+    Bicycles = 0;
+    Cars = 1;
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
     %Labels = {}; %Collect all Labels in struct
@@ -189,7 +194,7 @@ for meas = 1:Szenarios
     Traj = init_TrajectoryPlanner(Traj, tstep, duration, Targets, fmcw);
     egoMotion = fmcw.egoMotion;
     
-    % ParFor each measurement step in this scenario TIME: 2 SECONDS
+    % ParFor each measurement step in this scenario TIME: duration [sec]
     parfor tidx = 1:floor(duration/tstep)
         %% Move Targets
         [MovedTargets, Label, rPlt] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
@@ -197,7 +202,7 @@ for meas = 1:Szenarios
         
         sz = size(MovedTargets);        
         for i = 1:sz(1)
-            MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw,rPos); %update car reflection point positions
+            MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw,rPos); %update reflection point positions
         end
         
         %% Generate obstruction map for each chirp/time step

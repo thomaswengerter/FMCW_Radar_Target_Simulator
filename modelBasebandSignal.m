@@ -25,8 +25,6 @@ sb = zeros(fmcw.K,fmcw.L, fmcw.RXant);
 
 if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw.chirpShape,'SAW1')
     tsamp = fmcw.chirpInterval; % timestep to move target & radar
-    xTX = fmcw.MStrx(fmcw.chirps()); % Radar transmitter signal
-    
     
     %Target Backscatter
     if ~isempty(target)
@@ -44,15 +42,8 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
         %tseq = fmcw.chirpsCycle*fmcw.chirpInterval; % Duration of radar measurement
         
         % Restore all Reflection Points and move model one timestep
-        if targetID>=3 %Vehicle
-            target.CarTarget.release();
-        elseif targetID == 2 %Bicycle
-            target.BicyclistTarget.release();
-        else %Pedestrian
-            target.PedestrianTarget.release();
-        end
         target = restoreReflectionPoints(target, fmcw.c0, fmcw.f0);
-        [post,velt,axt,target] = move(target,tsamp); % move target
+        [post,velt,axt] = move(target,tsamp); % move target
             
 
         %% Obstruction Map
@@ -101,7 +92,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
 
 
             % Filter covered Scatterers
-            if sum(CoveredFilter, 'all')>0
+            if sum(sum(CoveredFilter))>0
                 obstruction = 1; % some Target points are obstructed
                 if sum(CoveredFilter, 'all') == length(post)
                     obstruction = 4; % all points hidden
@@ -125,7 +116,7 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
         NumScatterers = shape(end); % getNumScatters(target)
         if NumScatterers>0
             % Reflection point positions and radial velocities
-            [range,~] = rangeangle(posr,post,axt); % Calc angle between Radar and Target
+            range = sqrt((posr(1)-post(1,:)).^2+(posr(2)-post(2,:)).^2+(posr(3)-post(3,:)).^2);
             angle = zeros(2,length(range));
             angle(1,:) = round(atand((post(2,:)-posr(2))./(post(1,:)-posr(1)))); %azimuth
             angle(2,:) = asind((post(3,:)-posr(3))./range); %elevation
@@ -144,14 +135,8 @@ if strcmp(fmcw.chirpShape,'SAWgap')||strcmp(fmcw.chirpShape, 'TRI')||strcmp(fmcw
             end
                 
             % Reflection Point RCS (scalar)
-            if targetID>=3 %Vehicle
-                RCS = target.CarTarget.MeanRCS;
-            elseif targetID == 2 %Bicycle
-                RCS = target.BicyclistTarget.MeanRCS;
-            else %Pedestrian
-                RCS = target.PedestrianTarget.MeanRCS;
-            end
-
+            RCS = target.MeanRCS;
+                
             % Radar Equation for received Power (RCS)
             Prx = fmcw.TXpeakPower* 10^(fmcw.RXgain/10)* 10^(fmcw.TXgain/10) * (fmcw.c0/fmcw.f0)^2 * RCS'./((4*pi*range).^2 .*(4*pi*range.^2));% Radar Equation
             rAmp = sqrt(Prx); %Amp = sqrt(Pn)

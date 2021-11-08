@@ -19,6 +19,7 @@ classdef Pedestrian
         StepLength = []; % distance covered by one step
         StepDuration = []; % duration of one step
         RCS = []; %RCS real measurement data
+        MeanRCS = []; %RCS of scatterers
         
         ReceptionAngle = 180; % SET MAX INCIDENT ANGLE RANGE FOR RAY RECEPTION [-ReceptionAngle/2, ReceptionAngle/2]
         ReflectionsPerContourPoint = 1; % SET THIS PARAMETER FOR RESOLUTION
@@ -32,8 +33,9 @@ classdef Pedestrian
         RCSsigma = -6; %average total RCS of Pedestrians
         Acceleration = []; %Acceleration for all move() steps
         N = []; %final Number of Scattering points
-        TargetPlatform = []; %target platform
-        PedestrianTarget = []; %target object
+        Scatterer = []; %target platform
+        timestep = []; %Measurement time steps
+        
     end
     
     methods
@@ -184,10 +186,10 @@ classdef Pedestrian
             walkVelo(9:end,:) = obj.WalkingSpeed;
             
             
-            walkVelo3 = zeros(12,2,size(walkVelo,2));
+            walkVelo3 = zeros(12,3,ceil(obj.StepDuration/fmcw.chirpInterval));
             for i = 1:size(walkVelo3,1)
-              walkVelo3(i,1,:) =  walkVelo(i,:) *cos(DOA(i));
-              walkVelo3(i,2,:) =  walkVelo(i,:) *sin(DOA(i));
+              walkVelo3(i,1,:) =  walkVelo(i,:) *cos(obj.heading); % vx
+              walkVelo3(i,2,:) =  walkVelo(i,:) *sin(obj.heading); % vy
             end
             
             
@@ -249,8 +251,7 @@ classdef Pedestrian
             
             % Collect all Car Scattering Points
             meastime = 0:fmcw.chirpInterval:obj.StepDuration;
-            obj.PedestrianTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma.',...
-                    'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
+            obj.MeanRCS = obj.RCSsigma.';
             
             CustomTrajectory = zeros(length(meastime), 4, size(Contour,1)); % t, x(t), y(t), z(t)
             %CustomTrajectory(:,3,:) = repmat(Contour(:,3)', length(meastime), 1);
@@ -262,24 +263,29 @@ classdef Pedestrian
                 CustomTrajectory(t,3,:) = squeeze(CustomTrajectory(t-1,3,:))+ squeeze(walkVelo3(:,2,t)*fmcw.chirpInterval);
                 CustomTrajectory(t,4,:) = Contour(:,3);
             end  
-            obj.TargetPlatform = phased.Platform(...
-                    'OrientationAxesOutputPort',true,...
-                    'CustomTrajectory', CustomTrajectory,...
-                    'MotionModel', 'Custom');
-                    % 'InitialPosition',[Contour(:,1)'; Contour(:,2)'; Contour(:,3)'], 
-                    % 'InitialVelocity', [cosd(obj.heading)*obj.WalkingSpeed*ones(size(Contour(:,1)))';...
-                    %sind(obj.heading)*obj.WalkingSpeed*ones(size(Contour(:,1)))'; ...
-                    %zeros(size(Contour(:,1)'))], 
+            
+            obj.Scatterer = struct('InitPosition', Contour.', 'Velocity', walkVelo3);
+            
+            obj.timestep = fmcw.chirpInterval;
         end
         
         
         
         %% Move Target Platform
-        function [post,velt,axt, obj] = move(obj, tsamp)
+        function [post,velt,axt] = move(obj, tsamp)
             % Calculates the current target position and velocity after 
-            % moving the platform for a duration tsamp.
-            tsamp = mod(tsamp, obj.StepDuration);
-            [post,velt,axt] = obj.TargetPlatform(tsamp);
+            % moving the platform for a duration tsamp away from the initial position at tsamp=0.
+            twstep = ceil(mod(tsamp, obj.StepDuration)/obj.timestep);      % time index for walking velocities
+            velt = obj.Scatterer.Velocity(:,:,twstep);
+            tstep = ceil(tsamp/obj.timestep);    % measurement step
+            
+            post = obj.Scatterer.InitPosition;
+            for sidx = floor(tsamp/obj.StepDuration)
+                % Completed Steps
+                post = post+ sum(obj.Scatterer.Velocity,3)*obj.timestep;
+            end
+            post = post+ sum(obj.Scatterer.Velocity(:,:,1:twstep),3)*obj.timestep;
+            axt = velt/sum(velt);
         end
         
         
@@ -296,21 +302,18 @@ classdef Pedestrian
         end
         
         
-        %% Release Car Target Object
+        %% Remove Hidden Scatterers
         function obj = RemoveHiddenScatterers(obj, bool, fmcwc0, fmcwf0)
-            % Call radar target release function for changes of reflection
-            % points
+            % Set RCS to 0 for hidden Scatterers
             RCSsig = obj.RCSsigma;
-            RCSsig(bool>0) = [];
-            obj.PedestrianTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', RCSsig.',...
-                    'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
+            RCSsig(bool>0) = 0;
+            obj.MeanRCS = RCSsig.';
         end
         
         
         %% Restore Car Target Object
         function obj = restoreReflectionPoints(obj, fmcwc0, fmcwf0)
-            obj.PedestrianTarget = phased.RadarTarget('Model', 'Nonfluctuating','MeanRCS', obj.RCSsigma.',...
-                    'PropagationSpeed',fmcwc0,'OperatingFrequency',fmcwf0);
+            obj.MeanRCS = obj.RCSsigma.';
         end
     end
 end

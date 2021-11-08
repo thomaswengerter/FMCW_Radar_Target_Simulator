@@ -20,6 +20,7 @@ classdef FMCWradar
         f0 = 76.5e9; %Radar frequency
         chirpsCycle = 256; %Number of chirps per measurement cycle (Doppler)
         height = 0.5; %position above street in m
+        InitPos = [0,0,0]; %Position at start of measurement
         egoMotion = 0; %[true, false, XX(default)] car with radar moves
         
         %Antennas & Propagation
@@ -110,24 +111,24 @@ classdef FMCWradar
             showplot = false; %for plot, change obj.Propagation_fs
             obj.Propagation_fs = obj.sweepBw; %sampling rate of the modelled prop signal
             
-            if obj.chirpShape == 'TRI'
+            if strcmp(obj.chirpShape, 'TRI')
                 %TRIANGLE
                 tup     = (0:obj.K-1) / obj.fs;
                 tdown   = (obj.K:2*obj.K-1) / obj.fs;
                 signal  = zeros(1,2*obj.K);
                 signal(1:obj.K-1)    = exp(1i*2*pi *  obj.sweepBw/2/obj.chirpTime * tup.^2);
                 signal(obj.K:end)    = exp(1i*2*pi * -obj.sweepBw/2/obj.chirpTime * tdown.^2)
-            elseif obj.chirpShape == 'SAW1'
+            elseif strcmp(obj.chirpShape, 'SAW1')
                 %SAWTOOTH    
                 tup     = (0:obj.K-1) / obj.fs;
                 signal  = zeros(1,obj.K);
                 signal               = exp(1i*2*pi *  obj.sweepBw/2/obj.chirpTime * tup.^2);
                 
-            elseif obj.chirpShape == 'SAWgap' 
+            elseif strcmp(obj.chirpShape, 'SAWgap')
                 %SAWTOOTH with gap
                 tup     = (0:obj.K-1) / obj.fs;
-                signal  = zeros(1,obj.chirpTime/obj.fs);
-                signal(1:obj.K-1)    = exp(1i*2*pi *  obj.sweepBw/2/obj.chirpTime * tup.^2);
+                signal  = zeros(1,obj.chirpTime*obj.fs);
+                signal(1:obj.K)    = exp(1i*2*pi *  obj.sweepBw/2/obj.chirpTime * tup.^2);
             else
                 error('\n !!Unknown chirp sequence!!\nChoose from [TRI, SAW1, SAWgap].\n\n')
             end
@@ -159,15 +160,28 @@ classdef FMCWradar
         end
         
         
+        %% Measurement Channel
+        %   Full Prx = MSchan(txsignal,range)*sigma * G_tx * G_rx 
+        function rxsignal = MSchan(obj, txsignal, range)
+            % Radar equation with free space attenuation 
+            lambda    = obj.c0/obj.f0;
+            att       = lambda^2/((4*pi)^3*range^4);
+            rxsignal  = att* txsignal;
+        end
+        
+        %% Radar Platform
+        function [pos, vel, axt] = move(obj, tsamp, acc = [0,0,0])
+            % Calculates the current target position and velocity after 
+            % moving the platform for a duration tsamp from the original position at tsamp=0.
+            vel  = [obj.egoMotion, 0, 0];
+            pos  = obj.InitPos + tsamp*vel + 0.5*acc*tsamp^2;
+            axt  = pos/sum(pos);
+        end
+          
+        
+        
         %% Setup Measurement
         function obj = setupMeasurement(obj)
-            % Channel Model
-            obj.MSchan = phased.FreeSpace('PropagationSpeed',obj.c0,'OperatingFrequency',obj.f0, ...
-                'TwoWayPropagation',true,'SampleRate',obj.Propagation_fs);
-            % Radar Position and Motion
-            obj.MSradarplt = phased.Platform('InitialPosition',[0;0;obj.height], ...
-                'OrientationAxesOutputPort',true, 'InitialVelocity', [obj.egoMotion;0;0], 'Acceleration', [0;0;0], ...
-                'MotionModel', 'Acceleration', 'AccelerationSource', 'Input port');
             % Radar Transmitter
             obj.MStrx = phased.Transmitter('PeakPower',obj.TXpeakPower,'Gain',obj.TXgain);
             % Radar Receiver
