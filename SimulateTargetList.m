@@ -46,11 +46,11 @@ c_0 = 299792458;
 
 plotAntennas = []; % List indices of RX antenna elements to be plotted in RD map [0: plot RD map, (1:8): Plot each antenna element, []: No Plot]
 Szenarios = 1; % SET NUMBER OF SZENARIOS
-duration = 1;  % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
+duration = 0.5;  % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
 
 %% Setup directories to save results
 SimDataPath = 'SimulationData/';
-add_files = false;
+add_files = true;
 if ~add_files && exist(SimDataPath(1:end-1),'dir')
     %clear Sim data folder
     rmdir('SimulationData','s');
@@ -201,10 +201,6 @@ for meas = 1:Szenarios
         %% Move Targets
         [MovedTargets, Label, rPlt] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
         rPos = rPlt(:,1); %current radar position
-      
-        for i = 1:size(MovedTargets,1)
-            MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw,rPos); %init/update reflection point positions
-        end
         
         %% Generate obstruction map for each chirp/time step
         map = generateObstructionMap(MovedTargets, fmcw, rPos);

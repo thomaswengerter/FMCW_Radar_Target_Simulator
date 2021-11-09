@@ -10,9 +10,10 @@ classdef TrajectoryPlanner
         heading = [];       %heading
         trajectory = [];    %position
         velocity = [];      %velocity
+        acc = [];           %acceleration
         rtrajectory = [];   %radar position
         rvelocity = [];     %radar velocity
-        plotTraj = false;    %bool for live plot
+        plotTraj = true;    %bool for live plot
     end
     
     methods
@@ -249,6 +250,7 @@ classdef TrajectoryPlanner
             
             
             %% Write to trajectory object
+            obj.acc = acc;
             obj.velocity = v;
             obj.heading = dir;
             obj.trajectory = mapPos;
@@ -303,6 +305,7 @@ classdef TrajectoryPlanner
                     Targets{i,2}.yPos = obj.trajectory(i,t,2);
                     Targets{i,2}.heading = obj.heading(i,t);
                     Targets{i,2}.WalkingSpeed = obj.velocity(i,t);
+                    Targets{i,2}.move(t, obj.acc(i, 1:t), obj.heading(i, 1:t))
                     
                     % Calculate label
                     Labels{i,1} = Targets{i,1};

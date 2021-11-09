@@ -271,6 +271,37 @@ classdef Pedestrian
         
         
         
+        function move_acc(obj, tsamp, acc, dir)
+            % Iterative
+            if tsamp == 0
+                post = obj.Scatterer.InitPosition;
+                velt = obj.Scatterer.Velocity(:,:,1)';
+                axt = [cosd(obj.heading), sind(obj.heading), 0];
+            
+            else
+                
+                post = obj.Scatterer.InitPosition + sum(obj.Scatterer.InitVelocity*obj.timestep * [cosd(heading); sind(heading); zeros(1,t)], 2);
+                post = post + sum(0.5* repmat(acc, 3,1).* obj.timestep^2 * [cosd(heading); sind(heading); zeros(1,t)], 2);
+                velt = obj.Scatterer.InitVelocity* [cosd(heading); sind(heading); zeros(1,t)]+ ;
+                twstep = ceil(mod(tsamp, obj.StepDuration)/obj.timestep)+1;      % time index for walking velocities
+                velt = obj.Scatterer.Velocity(:,:,twstep)';
+                tstep = ceil(tsamp/obj.timestep);    % measurement step
+                
+                post = obj.Scatterer.InitPosition;
+                for sidx = floor(tsamp/obj.StepDuration)
+                    % Completed Steps
+                    post = post+ sum(obj.Scatterer.Velocity,3)'*obj.timestep;
+                end
+                post = post+ sum(obj.Scatterer.Velocity(:,:,1:twstep),3)'*obj.timestep;
+                if sum(velt) != 0
+                  axt = velt/sum(velt);
+                else
+                  axt = [cosd(obj.heading), sind(obj.heading), 0];
+                end
+                
+            end
+        end
+        
         %% Move Target Platform
         function [post,velt,axt] = move(obj, tsamp)
             % Calculates the current target position and velocity after 
