@@ -33,7 +33,9 @@
 % -------------------------------------------------------------------------
 pkg load statistics 
 pkg load signal
-
+pkg load image
+graphics_toolkit('gnuplot');
+                
 close all
 clear all
 
@@ -42,13 +44,13 @@ tic
 global c_0;
 c_0 = 299792458;
 
-plotAntennas = [0]; % List indices of RX antenna elements to be plotted in RD map [0: plot RD map, (1:8): Plot each antenna element, []: No Plot]
+plotAntennas = []; % List indices of RX antenna elements to be plotted in RD map [0: plot RD map, (1:8): Plot each antenna element, []: No Plot]
 Szenarios = 1; % SET NUMBER OF SZENARIOS
-duration = 0.017; % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
+duration = 1;  % (sec) SET DURATION OF A SZENARIO  1 meas == 256*64µs = 0.0164 s
 
 %% Setup directories to save results
 SimDataPath = 'SimulationData/';
-add_files = true;
+add_files = false;
 if ~add_files && exist(SimDataPath(1:end-1),'dir')
     %clear Sim data folder
     rmdir('SimulationData','s');
@@ -84,9 +86,6 @@ for meas = 1:Szenarios
         Cars = floor(2.3*rand());
         checksum = Pedestrians+Bicycles+Cars;
     end
-    Pedestrians = 0;
-    Bicycles = 0;
-    Cars = 1;
     
     % OUTPUT: Labels.Target = [Range, Vel, Azi, Heading]
     %Labels = {}; %Collect all Labels in struct
@@ -115,6 +114,9 @@ for meas = 1:Szenarios
         targetV = +ped.WalkingSpeed*cos(ped.heading/360*2*pi);
         azi = atand(ped.yPos/ped.xPos);
 
+        %rPos = [0;0;fmcw.height];
+        %ped = ped.generateBackscatterTarget(fmcw,rPos); %Generate backscattering points with RCS
+        
         %Label output and save
         %label = [targetR, targetV, azi, fmcw.egoMotion, ped.InitialPosition(1), ped.InitialPosition(2), 0.65, 0.5, heading, 0];
         name = ['Pedestrian', num2str(target)];
@@ -147,8 +149,8 @@ for meas = 1:Szenarios
         targetV = cosd(relangle)*bike.vel; %radial velocity
         azi = atand(bike.yPos/bike.xPos);
 
-        rPos = [0;0;fmcw.height];
-        bike = bike.generateBackscatterTarget(fmcw, rPos); %Generate backscattering points with RCS
+        %rPos = [0;0;fmcw.height];
+        %bike = bike.generateBackscatterTarget(fmcw, rPos); %Generate backscattering points with RCS
 
         %Label output and save
         %label =  [targetR, targetV, azi, fmcw.egoMotion, bike.xPos, bike.yPos, bike.width, bike.length, heading, 0];
@@ -179,8 +181,8 @@ for meas = 1:Szenarios
         targetV = cosd(relangle)*car.vel; %radial velocity
         azi = atand(car.yPos/car.xPos);
 
-        rPos = [0;0;fmcw.height];
-        car = car.generateBackscatterTarget(fmcw,rPos); %Generate backscattering points with RCS
+        %rPos = [0;0;fmcw.height];
+        %car = car.generateBackscatterTarget(fmcw,rPos); %Generate backscattering points with RCS
 
         %Label output and save
         %label =  [targetR, targetV, azi, fmcw.egoMotion, car.xPos, car.yPos, car.width, car.length, heading, 0];
@@ -199,10 +201,9 @@ for meas = 1:Szenarios
         %% Move Targets
         [MovedTargets, Label, rPlt] = move_TrajectoryPlanner(Traj, tidx, Targets, egoMotion);
         rPos = rPlt(:,1); %current radar position
-        
-        sz = size(MovedTargets);        
-        for i = 1:sz(1)
-            MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw,rPos); %update reflection point positions
+      
+        for i = 1:size(MovedTargets,1)
+            MovedTargets{i,2} = MovedTargets{i,2}.generateBackscatterTarget(fmcw,rPos); %init/update reflection point positions
         end
         
         %% Generate obstruction map for each chirp/time step
@@ -212,7 +213,7 @@ for meas = 1:Szenarios
         %% Simulate Baseband Signals
         %for each target in Targets
         sb = zeros(fmcw.K, fmcw.L, fmcw.RXant); %empty Rx signal
-        for i= 1:sz(1)
+        for i= 1:size(MovedTargets,1)
             Target = MovedTargets{i,2};
             if strcmp(MovedTargets{i,1}(1:3), 'Ped')
                 targetID = 1; 
@@ -253,7 +254,7 @@ for meas = 1:Szenarios
         sbc = fmcw.addStaticClutter(sbn);
         RD = fmcw.RDmap(sbc);
         fmcw.plotRDmap(RD, [], plotAntennas);
-
+        
         %DEBUG: Show Noise char over Range
         %plotNoise;
         saveMat(RD, Label, ['Szenario', num2str(meas+file_offset)], tidx, SimDataPath)

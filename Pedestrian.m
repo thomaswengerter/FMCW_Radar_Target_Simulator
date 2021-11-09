@@ -275,17 +275,27 @@ classdef Pedestrian
         function [post,velt,axt] = move(obj, tsamp)
             % Calculates the current target position and velocity after 
             % moving the platform for a duration tsamp away from the initial position at tsamp=0.
-            twstep = ceil(mod(tsamp, obj.StepDuration)/obj.timestep);      % time index for walking velocities
-            velt = obj.Scatterer.Velocity(:,:,twstep);
-            tstep = ceil(tsamp/obj.timestep);    % measurement step
-            
-            post = obj.Scatterer.InitPosition;
-            for sidx = floor(tsamp/obj.StepDuration)
-                % Completed Steps
-                post = post+ sum(obj.Scatterer.Velocity,3)*obj.timestep;
-            end
-            post = post+ sum(obj.Scatterer.Velocity(:,:,1:twstep),3)*obj.timestep;
-            axt = velt/sum(velt);
+            if tsamp == 0
+                post = obj.Scatterer.InitPosition;
+                velt = obj.Scatterer.Velocity(:,:,1)';
+                axt = [cosd(obj.heading), sind(obj.heading), 0];
+            else
+                twstep = ceil(mod(tsamp, obj.StepDuration)/obj.timestep)+1;      % time index for walking velocities
+                velt = obj.Scatterer.Velocity(:,:,twstep)';
+                tstep = ceil(tsamp/obj.timestep);    % measurement step
+                
+                post = obj.Scatterer.InitPosition;
+                for sidx = floor(tsamp/obj.StepDuration)
+                    % Completed Steps
+                    post = post+ sum(obj.Scatterer.Velocity,3)'*obj.timestep;
+                end
+                post = post+ sum(obj.Scatterer.Velocity(:,:,1:twstep),3)'*obj.timestep;
+                if sum(velt) != 0
+                  axt = velt/sum(velt);
+                else
+                  axt = [cosd(obj.heading), sind(obj.heading), 0];
+                end
+            end    
         end
         
         

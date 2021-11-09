@@ -498,25 +498,10 @@ classdef Bicyclist
 %             end
             
             
-            
-            
-            
-            
-            
-            %--------------------------------------------------------------
-            % BODY & UNDERBODY REFLECTIONS
-            % Sample gaussian reflections in center of vehicle
-            
-            
-            
-
-            
             %--------------------------------------------------------------
             % RCS
             % abs(RCS) for this viewing angle is sampled from measurements
             %
-            
-            
             hittingAngle = abs(normAngle(obj,DOA));
             RCSdBsm = interp1(0:10:180, obj.RCS, hittingAngle); % Find RCS for corresponding DOA from measurement data
             relRCS = 1/sum(Scatterer(:,3)) * Scatterer(:,3)'; % relative RCS contribution [0,1]
@@ -534,11 +519,10 @@ classdef Bicyclist
             Elref = ones(size(Scatterer(:,1)))* fmcw.height; %TODO Add height !!!!!!!!!!
             
             
-            
-            % Collect all Car Scattering Points
+            % Collect all Bike Scattering Points
             % Swerling2 optional
-            obj.BicyclistTarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS', obj.RCSsigma,...
-                    'PropagationSpeed',fmcw.c0,'OperatingFrequency',fmcw.f0);
+            obj.MeanRCS = obj.RCSsigma;
+                    
                     
             obj.Scatterer = struct('InitPosition',[Scatterer(:,1)'; Scatterer(:,2)'; Elref'], ...
                     'InitVelocity', [cosd(obj.heading)*obj.vel*ones(size(Contour(1:end-4,1)))', ...
@@ -566,11 +550,15 @@ classdef Bicyclist
             acc = [[zeros(1,lenContour), cosd(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)'];...
                     [zeros(1,lenContour), sind(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)']; ...
                     [zeros(1,lenContour), zeros(size(obj.Acceleration(:,1)'))]];
-            post = obj.Scatterer.InitPosition + obj.Scatterer.InitVelocity*tsamp + 0.5*acc*tstep^2;
+            post = obj.Scatterer.InitPosition + obj.Scatterer.InitVelocity*tsamp + 0.5*acc*obj.timestep^2;
             velinit  = obj.vel* [cosd(obj.heading), sind(obj.heading), 0];
-            velinit  = repmat(velinit, 1, size(acc,1));
-            velt = velinit + acc*tstep;
-            axt  = velt/sum(velt);
+            velinit  = repmat(velinit, size(acc,2), 1)';
+            velt = velinit + acc*obj.timestep;
+            if sum(velt) != 0
+              axt = velt/sum(velt);
+            else
+              axt = [cosd(obj.heading), sind(obj.heading), 0];
+            end
         end        
         
         %% Release Car Target Object

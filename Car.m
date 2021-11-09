@@ -693,6 +693,7 @@ classdef Car
             obj.Acceleration = wheelAcceleration;
             obj.N = size(Scatterer(:,1),1)+size(wheelScatterer(:,1),1); %Num of reflector Points in Car Target
             obj.timestep = fmcw.chirpInterval;
+            %figure; scatter(obj.Scatterer.InitPosition(1,:), obj.Scatterer.InitPosition(2,:),'filled')
         end
         
         
@@ -703,14 +704,24 @@ classdef Car
             % moving the platform for a duration tsamp away from the initial position at tsamp=0.
             lenContour = obj.N-size(obj.Acceleration(:,1),1);
             tstep = ceil(tsamp/obj.timestep);    % measurement step
-            acc = [[zeros(1,lenContour), cosd(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)'];...
-                    [zeros(1,lenContour), sind(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)']; ...
-                    [zeros(1,lenContour), zeros(size(obj.Acceleration(:,1)'))]];
-            post = obj.Scatterer.InitPosition + obj.Scatterer.InitVelocity*tsamp + 0.5*acc*tstep^2;
-            velinit  = obj.vel* [cosd(obj.heading), sind(obj.heading), 0];
-            velinit  = repmat(velinit, size(acc,2), 1)';
-            velt = velinit + acc*tstep;
-            axt  = velt/sum(velt);
+            if tsamp == 0
+                post = obj.Scatterer.InitPosition;
+                velt = obj.Scatterer.InitVelocity;
+                axt = axt = [cosd(obj.heading), sind(obj.heading), 0];
+                
+            else
+                acc = [[zeros(1,lenContour), cosd(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)'];...
+                      [zeros(1,lenContour), sind(obj.heading).*sum(obj.Acceleration(:,1:tstep),2)']; ...
+                      [zeros(1,lenContour), zeros(size(obj.Acceleration(:,1)'))]];
+                post = obj.Scatterer.InitPosition + obj.Scatterer.InitVelocity*tsamp + 0.5*acc*obj.timestep^2;
+                velt = velinit + acc*obj.timestep;
+                if sum(velt) != 0
+                  axt = velt/sum(velt);
+                else
+                  axt = [cosd(obj.heading), sind(obj.heading), 0];
+                end
+            end
+            %figure; scatter(post(1,:), post(2,:),'filled')
         end        
         
         

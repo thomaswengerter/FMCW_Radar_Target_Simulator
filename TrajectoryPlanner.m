@@ -241,10 +241,10 @@ classdef TrajectoryPlanner
             rPos = zeros(3, floor(Szduration/tstep));   % xyz positions
             rVel = zeros(3, floor(Szduration/tstep));   % xyz velocities
             %rPos(:,3) = fmcw.height;
-            for t = 1:floor(Szduration/tstep)
+            for t = 0:floor(Szduration/tstep)-1
                 [posr, velr, axt] = fmcw.move(t*tstep); % moving with constant speed, a=0
-                rPos(:,t) = posr;
-                rVel(:,t) = velr;
+                rPos(:,t+1) = posr;
+                rVel(:,t+1) = velr;
             end
             
             

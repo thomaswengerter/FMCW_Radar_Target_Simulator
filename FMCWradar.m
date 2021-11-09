@@ -175,7 +175,7 @@ classdef FMCWradar
             % moving the platform for a duration tsamp from the original position at tsamp=0.
             vel  = [obj.egoMotion, 0, 0];
             pos  = obj.InitPos + tsamp*vel + 0.5*acc*tsamp^2;
-            axt  = pos/sum(pos);
+            axt  = [1,0,0];
         end
           
         
