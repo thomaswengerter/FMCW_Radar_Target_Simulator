@@ -3,7 +3,8 @@
 This repository is developed to simulate automotive FMCW radar signals urban traffic scenarios with pedestrians, bicyclists and cars. Multiple targets are placed and moved arbitrarily in a simulated noisy radar environment. A baseband signal is calculated for each target reflector point in the model and the signals are added at the output to simulate the radar's baseband signal by superposition. Random static clutter and noise are added for realistic results. From the baseband signal, the 3D radar cube can be displayed. With its corresponding labels, the data can be utilized for detection algorithm validation or the training of deep learning radar detection algorithms.
 For more information about the developed models, read my [IEEE paper](https://ieeexplore.ieee.org/document/9827284).
 
-![alt text](MultiTargetRDmap.PNG)
+<p align="center">
+	![MultiTargetRDmap](https://user-images.githubusercontent.com/61163489/185382976-a1b6dd88-14c2-49d6-98fa-0e98971f600d.PNG =250x)
 
 
 ## Getting Started
