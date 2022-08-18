@@ -1,10 +1,14 @@
 # FMCW Radar Target Simulator
 
-This repository is developed to simulate automotive FMCW radar signals urban traffic scenarios with pedestrians, bicyclists and cars. Multiple targets are placed and moved arbitrarily in a simulated noisy radar environment. A baseband signal is calculated for each target reflector point and the signals are added at the output to simulate the radar's baseband signal by superposition. Random static clutter and noise are added for realistic results. From the baseband signal, the 3D radar cube is calculated. With its corresponding labels, the data can be utilized for detection algorithm validation or the training of deep learning radar detection algorithms.
+This repository is developed to simulate automotive FMCW radar signals urban traffic scenarios with pedestrians, bicyclists and cars. Multiple targets are placed and moved arbitrarily in a simulated noisy radar environment. A baseband signal is calculated for each target reflector point in the model and the signals are added at the output to simulate the radar's baseband signal by superposition. Random static clutter and noise are added for realistic results. From the baseband signal, the 3D radar cube can be displayed. With its corresponding labels, the data can be utilized for detection algorithm validation or the training of deep learning radar detection algorithms.
+For more information about the developed models, read my [IEEE paper](https://ieeexplore.ieee.org/document/9827284).
+
+![alt text](MultiTargetRDmap.PNG)
+
 
 ## Getting Started
 
-Download this repository to your local machine and run MATLAB in the unzipped folder. Make suref you have installed a MATLAB version from 2020 or later. The [Phased Array Toolbox](https://de.mathworks.com/products/phased-array.html) is required for this simulation. Download it from MATLAB's built-in toolbox archive.
+Download this repository to your local machine and run MATLAB in the unzipped folder. Make sure that you have installed a MATLAB version from 2020 or later. If you want to run the software on GNU Octave, navigate to the [Octave](https://github.com/thomaswengerter/FMCW_Radar_Target_Simulator/tree/Octave) branch. The [Phased Array Toolbox](https://de.mathworks.com/products/phased-array.html) is required for this simulation. Download it from MATLAB's built-in toolbox archive.
 
 The main funtion which needs to be run to initiate the simulation is [SimulateTargetList.m](SimulateTargetList.m) to generate a sequence of multi-target scenarios. Alternatively, [TargetSimulation.m](TargetSimulation.m) generates a single measurement of one target. Simulation options are: 
 * No targets (outputs noisy spectrum with static targets)
@@ -41,7 +45,7 @@ Open [FMCWradar.m](FMCWradar.m) to check the radar settings. All parameters like
 	Target labels have the following format:
 	**[Range, velocity, azimuth, RadarVelocity, xPosition, yPosition, width, height, heading, obstruction]**
 
-The coordinate system is always with the radar device in (0,0,0), looking in direction of the x-axis. The simulated radar cubes are saved in decibel.
+The origin of the coordinate system is always with the radar device in (0,0,0), looking in direction of the x-axis. The simulated radar cubes are saved in decibel.
 
 
 ### Conversion to COCO annotation format
